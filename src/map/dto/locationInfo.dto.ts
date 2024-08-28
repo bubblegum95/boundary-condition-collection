@@ -6,7 +6,7 @@ export class LocationInfoDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty({
-    description: '최대 위도',
+    description: '최대 위도(y좌표)',
     example: 37.53,
   })
   @Transform(({ value }) => parseFloat(value))
@@ -15,7 +15,7 @@ export class LocationInfoDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty({
-    description: '최대 경도',
+    description: '최대 경도(x좌표)',
     example: 127.08,
   })
   @Transform(({ value }) => parseFloat(value))
@@ -24,7 +24,7 @@ export class LocationInfoDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty({
-    description: '최소 위도',
+    description: '최소 위도(y좌표)',
     example: 37.49,
   })
   @Transform(({ value }) => parseFloat(value))
@@ -33,7 +33,7 @@ export class LocationInfoDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty({
-    description: '최소 경도',
+    description: '최소 경도(x좌표)',
     example: 127.03,
   })
   @Transform(({ value }) => parseFloat(value))

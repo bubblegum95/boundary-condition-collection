@@ -26,7 +26,7 @@ export class Stations {
     scale: 7,
     nullable: false,
   })
-  dmX: number;
+  dmX: number; // 위도(latitude)
 
   @Column({
     type: 'decimal',
@@ -34,7 +34,7 @@ export class Stations {
     scale: 7,
     nullable: false,
   })
-  dmY: number;
+  dmY: number; // 경도(longitude)
 
   @OneToOne(() => Pollutions, (pollutions) => pollutions.stations, {
     eager: true,

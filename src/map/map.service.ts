@@ -28,17 +28,17 @@ export class MapService {
     private readonly cityRepository: Repository<City>,
     private readonly configService: ConfigService
   ) {
-    cron.schedule('*/8 * * * *', () => {
-      this.saveAverage();
-    });
+    // cron.schedule('*/1 * * * *', () => {
+    //   this.saveAverage();
+    // });
 
-    cron.schedule('*/10 * * * *', () => {
+    cron.schedule('*/1 * * * *', () => {
       this.savePollutionInformation();
     });
 
-    cron.schedule('3 * * * *', () => {
-      this.saveStations();
-    });
+    // cron.schedule('*/1 * * * *', () => {
+    //   this.saveStations();
+    // });
   }
 
   hasNullValues(obj: Record<string, any>): boolean {
@@ -121,7 +121,7 @@ export class MapService {
             coValue,
             coGrade,
           };
-          this.savePollutionData(data);
+          await this.savePollutionData(data);
         }
       } else {
         throw new Error('Failed to fetch pollution data');
@@ -133,26 +133,38 @@ export class MapService {
 
   async savePollutionData(data) {
     try {
-      const foundStation = await this.pollutionsRepository.findOne({
-        where: { sidoName: data.sidoName, stationName: data.stationName },
+      const foundStation = await this.stationsRepository.findOne({
+        where: { stationName: data.stationName },
         select: { id: true },
+        relations: {
+          pollutions: true,
+        },
       });
 
       if (!foundStation) {
         console.log(`등록된 ${data.stationName} 측정소가 없습니다.`);
+        console.log('found station: ', foundStation);
         return;
       } else if (foundStation) {
-        this.pollutionsRepository.update({ id: foundStation.id }, { ...data });
-        console.log(`${foundStation.id} 측정소의 측정값을 업데이트 합니다.`);
-      } else {
-        this.pollutionsRepository.save({ ...data });
-        console.log(
-          `새로운 ${data.stationName} 측정소의 측정값을 업로드합니다.`
-        );
+        if (!foundStation.pollutions) {
+          this.pollutionsRepository.save({
+            ...data,
+            stationId: foundStation.id,
+          });
+          console.log(
+            `새로운 ${data.stationName} 측정소의 측정값을 업로드합니다.`
+          );
+        } else {
+          this.pollutionsRepository.update(
+            { id: foundStation.pollutions.id },
+            { ...data }
+          );
+          console.log(`${foundStation.id} 측정소의 측정값을 업데이트 합니다.`);
+        }
       }
       return 'save air pollution data';
     } catch (e) {
-      throw e.message;
+      throw e;
     }
   }
 
@@ -309,11 +321,15 @@ export class MapService {
     const { minLat, maxLat, minLng, maxLng } = dto;
 
     try {
-      const data = await this.stationsRepository
-        .createQueryBuilder('stations')
-        .leftJoinAndSelect('stations.pollutions', 'pollutions')
-        .where('stations.dmX BETWEEN :minLat AND :maxLat', { minLat, maxLat })
-        .andWhere('stations.dmY BETWEEN :minLng AND :maxLng', {
+      const data = await this.pollutionsRepository
+        .createQueryBuilder('pollutions')
+        .innerJoinAndSelect('pollutions.station', 'stations')
+        .addSelect(['stations.dm_y', 'stations.dm_x'])
+        .where('stations.dm_x BETWEEN :minLat AND :maxLat', {
+          minLat,
+          maxLat,
+        })
+        .andWhere('stations.dm_y BETWEEN :minLng AND :maxLng', {
           minLng,
           maxLng,
         })

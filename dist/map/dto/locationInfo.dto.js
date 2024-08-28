@@ -20,7 +20,7 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsNotEmpty)(),
     (0, swagger_1.ApiProperty)({
-        description: '최대 위도',
+        description: '최대 위도(y좌표)',
         example: 37.53,
     }),
     (0, class_transformer_1.Transform)(({ value }) => parseFloat(value)),
@@ -30,7 +30,7 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsNotEmpty)(),
     (0, swagger_1.ApiProperty)({
-        description: '최대 경도',
+        description: '최대 경도(x좌표)',
         example: 127.08,
     }),
     (0, class_transformer_1.Transform)(({ value }) => parseFloat(value)),
@@ -40,7 +40,7 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsNotEmpty)(),
     (0, swagger_1.ApiProperty)({
-        description: '최소 위도',
+        description: '최소 위도(y좌표)',
         example: 37.49,
     }),
     (0, class_transformer_1.Transform)(({ value }) => parseFloat(value)),
@@ -50,7 +50,7 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsNotEmpty)(),
     (0, swagger_1.ApiProperty)({
-        description: '최소 경도',
+        description: '최소 경도(x좌표)',
         example: 127.03,
     }),
     (0, class_transformer_1.Transform)(({ value }) => parseFloat(value)),

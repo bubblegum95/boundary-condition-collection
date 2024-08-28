@@ -1,6 +1,7 @@
 import { Stations } from './stations.entity';
 export declare class Pollutions {
     id: number;
+    stationId: number;
     stationName: string;
     dataTime: string;
     sidoName: string;
