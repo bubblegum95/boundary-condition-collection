@@ -5,5 +5,5 @@ export declare class Stations {
     addr: string;
     dmX: number;
     dmY: number;
-    pollutions: Pollutions;
+    pollution: Pollutions;
 }

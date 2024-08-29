@@ -13,6 +13,9 @@ export class Pollutions {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ type: 'int', nullable: false, unique: true })
+  stationId: number;
+
   @Column({ type: 'varchar', nullable: false, unique: true })
   stationName: string;
 
@@ -61,7 +64,7 @@ export class Pollutions {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToOne(() => Stations, (stations) => stations.pollutions)
-  @JoinColumn({ name: 'station_name' })
-  stations: Stations;
+  @OneToOne(() => Stations, (station) => station.pollution)
+  @JoinColumn({ name: 'station_id' })
+  station: Stations;
 }

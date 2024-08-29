@@ -1,6 +1,7 @@
 import { Stations } from './stations.entity';
 export declare class Pollutions {
     id: number;
+    stationId: number;
     stationName: string;
     dataTime: string;
     sidoName: string;
@@ -17,5 +18,5 @@ export declare class Pollutions {
     coValue: string;
     coGrade: string;
     updatedAt: Date;
-    stations: Stations;
+    station: Stations;
 }

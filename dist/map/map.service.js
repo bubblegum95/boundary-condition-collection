@@ -54,19 +54,20 @@ const grade_thresholds_type_1 = require("./type/grade-thresholds.type");
 const sido_name_type_1 = require("./type/sido-name.type");
 const city_entity_1 = require("./entities/city.entity");
 let MapService = class MapService {
-    constructor(pollutionsRepository, stationsRepository, averageRepository, cityRepository, configService) {
+    constructor(pollutionsRepository, stationsRepository, averageRepository, cityRepository, entityManager, configService) {
         this.pollutionsRepository = pollutionsRepository;
         this.stationsRepository = stationsRepository;
         this.averageRepository = averageRepository;
         this.cityRepository = cityRepository;
+        this.entityManager = entityManager;
         this.configService = configService;
-        cron.schedule('*/8 * * * *', () => {
+        cron.schedule('*/5 * * * *', () => {
             this.saveAverage();
         });
-        cron.schedule('*/10 * * * *', () => {
+        cron.schedule('*/3 * * * *', () => {
             this.savePollutionInformation();
         });
-        cron.schedule('3 * * * *', () => {
+        cron.schedule('0 2 * * *', () => {
             this.saveStations();
         });
     }
@@ -133,7 +134,7 @@ let MapService = class MapService {
                         coValue,
                         coGrade,
                     };
-                    this.savePollutionData(data);
+                    await this.savePollutionData(data);
                 }
             }
             else {
@@ -146,26 +147,65 @@ let MapService = class MapService {
     }
     async savePollutionData(data) {
         try {
-            const foundStation = await this.pollutionsRepository.findOne({
-                where: { sidoName: data.sidoName, stationName: data.stationName },
-                select: { id: true },
+            const { dataTime, sidoName, stationName, pm10Value, pm10Grade, pm25Value, pm25Grade, no2Value, no2Grade, o3Value, o3Grade, so2Value, so2Grade, coValue, coGrade, } = data;
+            const foundStation = await this.stationsRepository.findOne({
+                where: { stationName },
+                relations: {
+                    pollution: true,
+                },
             });
+            console.log(foundStation);
             if (!foundStation) {
-                console.log(`등록된 ${data.stationName} 측정소가 없습니다.`);
+                console.log(`등록된 ${stationName} 측정소가 없습니다.`);
+                console.log('found station: ', foundStation);
                 return;
             }
             else if (foundStation) {
-                this.pollutionsRepository.update({ id: foundStation.id }, { ...data });
-                console.log(`${foundStation.id} 측정소의 측정값을 업데이트 합니다.`);
-            }
-            else {
-                this.pollutionsRepository.save({ ...data });
-                console.log(`새로운 ${data.stationName} 측정소의 측정값을 업로드합니다.`);
+                if (!foundStation.pollution) {
+                    console.log(`새로운 ${foundStation.stationName} 측정소의 측정값을 업로드합니다.`);
+                    await this.pollutionsRepository.save({
+                        stationId: foundStation.id,
+                        dataTime,
+                        sidoName,
+                        stationName,
+                        pm10Value,
+                        pm10Grade,
+                        pm25Value,
+                        pm25Grade,
+                        no2Value,
+                        no2Grade,
+                        o3Value,
+                        o3Grade,
+                        so2Value,
+                        so2Grade,
+                        coValue,
+                        coGrade,
+                    });
+                }
+                else {
+                    console.log(`${foundStation.stationName} 측정소의 측정값을 업데이트 합니다.`);
+                    console.log(data);
+                    await this.pollutionsRepository.update(foundStation.pollution.id, {
+                        dataTime,
+                        pm10Value,
+                        pm10Grade,
+                        pm25Value,
+                        pm25Grade,
+                        no2Value,
+                        no2Grade,
+                        o3Value,
+                        o3Grade,
+                        so2Value,
+                        so2Grade,
+                        coValue,
+                        coGrade,
+                    });
+                }
             }
             return 'save air pollution data';
         }
         catch (e) {
-            throw e.message;
+            throw e;
         }
     }
     async saveDataToFile(data) {
@@ -294,15 +334,26 @@ let MapService = class MapService {
     async getPollutionInformation(dto) {
         const { minLat, maxLat, minLng, maxLng } = dto;
         try {
-            const data = await this.stationsRepository
-                .createQueryBuilder('stations')
-                .leftJoinAndSelect('stations.pollutions', 'pollutions')
-                .where('stations.dmX BETWEEN :minLat AND :maxLat', { minLat, maxLat })
-                .andWhere('stations.dmY BETWEEN :minLng AND :maxLng', {
-                minLng,
-                maxLng,
-            })
-                .getMany();
+            const rawQuery = `
+        SELECT 
+          p.*, 
+          s.id as station_id,
+          s.station_name,
+          s.addr,
+          s.dm_x,
+          s.dm_y
+        FROM 
+          pollutions p 
+        INNER JOIN 
+          stations s 
+        ON 
+          p.station_id = s.id 
+        WHERE 
+          s.dm_x BETWEEN $1 AND $2 
+          AND s.dm_y BETWEEN $3 AND $4
+      `;
+            const parameters = [minLat, maxLat, minLng, maxLng];
+            const data = await this.entityManager.query(rawQuery, parameters);
             return data;
         }
         catch (e) {
@@ -345,10 +396,12 @@ exports.MapService = MapService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(stations_entity_1.Stations)),
     __param(2, (0, typeorm_1.InjectRepository)(average_entity_1.Average)),
     __param(3, (0, typeorm_1.InjectRepository)(city_entity_1.City)),
+    __param(4, (0, typeorm_1.InjectEntityManager)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
+        typeorm_2.EntityManager,
         config_1.ConfigService])
 ], MapService);
 //# sourceMappingURL=map.service.js.map

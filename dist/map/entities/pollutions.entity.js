@@ -20,6 +20,10 @@ __decorate([
     __metadata("design:type", Number)
 ], Pollutions.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: false, unique: true }),
+    __metadata("design:type", Number)
+], Pollutions.prototype, "stationId", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'varchar', nullable: false, unique: true }),
     __metadata("design:type", String)
 ], Pollutions.prototype, "stationName", void 0);
@@ -84,10 +88,10 @@ __decorate([
     __metadata("design:type", Date)
 ], Pollutions.prototype, "updatedAt", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => stations_entity_1.Stations, (stations) => stations.pollutions),
-    (0, typeorm_1.JoinColumn)({ name: 'station_name' }),
+    (0, typeorm_1.OneToOne)(() => stations_entity_1.Stations, (station) => station.pollution),
+    (0, typeorm_1.JoinColumn)({ name: 'station_id' }),
     __metadata("design:type", stations_entity_1.Stations)
-], Pollutions.prototype, "stations", void 0);
+], Pollutions.prototype, "station", void 0);
 exports.Pollutions = Pollutions = __decorate([
     (0, typeorm_1.Entity)({ name: 'pollutions' })
 ], Pollutions);
