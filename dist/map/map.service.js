@@ -70,6 +70,10 @@ let MapService = class MapService {
         cron.schedule('0 2 * * *', () => {
             this.saveStations();
         });
+        cron.schedule('0 1 1 * *', () => {
+            const data = this.savePollutionInformation();
+            this.saveDataToFile(data);
+        });
     }
     hasNullValues(obj) {
         for (const key in obj) {
