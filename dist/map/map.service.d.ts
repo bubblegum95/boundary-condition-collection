@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Pollutions } from './entities/pollutions.entity';
 import { ConfigService } from '@nestjs/config';
 import { Stations } from './entities/stations.entity';
@@ -11,8 +11,9 @@ export declare class MapService {
     private readonly stationsRepository;
     private readonly averageRepository;
     private readonly cityRepository;
+    private readonly entityManager;
     private readonly configService;
-    constructor(pollutionsRepository: Repository<Pollutions>, stationsRepository: Repository<Stations>, averageRepository: Repository<Average>, cityRepository: Repository<City>, configService: ConfigService);
+    constructor(pollutionsRepository: Repository<Pollutions>, stationsRepository: Repository<Stations>, averageRepository: Repository<Average>, cityRepository: Repository<City>, entityManager: EntityManager, configService: ConfigService);
     hasNullValues(obj: Record<string, any>): boolean;
     savePollutionInformation(): Promise<void>;
     savePollutionData(data: any): Promise<string>;
@@ -20,6 +21,6 @@ export declare class MapService {
     saveStations(): Promise<void>;
     saveAverage(): Promise<void>;
     saveGrade(type: keyof GradeThresholds, value: number): Promise<string>;
-    getPollutionInformation(dto: LocationInfoDto): Promise<Pollutions[]>;
+    getPollutionInformation(dto: LocationInfoDto): Promise<any>;
     getAverage(): Promise<any[]>;
 }

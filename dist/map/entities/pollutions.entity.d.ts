@@ -18,5 +18,5 @@ export declare class Pollutions {
     coValue: string;
     coGrade: string;
     updatedAt: Date;
-    stations: Stations;
+    station: Stations;
 }

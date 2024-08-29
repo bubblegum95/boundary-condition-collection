@@ -21,6 +21,7 @@ __decorate([
 ], Stations.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', nullable: false, length: 50, unique: true }),
+    (0, typeorm_1.Index)('station_name_index'),
     __metadata("design:type", String)
 ], Stations.prototype, "stationName", void 0);
 __decorate([
@@ -46,11 +47,11 @@ __decorate([
     __metadata("design:type", Number)
 ], Stations.prototype, "dmY", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => pollutions_entity_1.Pollutions, (pollutions) => pollutions.stations, {
+    (0, typeorm_1.OneToOne)(() => pollutions_entity_1.Pollutions, (pollution) => pollution.station, {
         eager: true,
     }),
     __metadata("design:type", pollutions_entity_1.Pollutions)
-], Stations.prototype, "pollutions", void 0);
+], Stations.prototype, "pollution", void 0);
 exports.Stations = Stations = __decorate([
     (0, typeorm_1.Entity)({ name: 'stations' })
 ], Stations);

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Pollutions } from './entities/pollutions.entity';
 import { ConfigService } from '@nestjs/config';
 import { Stations } from './entities/stations.entity';
@@ -26,19 +26,19 @@ export class MapService {
     private readonly averageRepository: Repository<Average>,
     @InjectRepository(City)
     private readonly cityRepository: Repository<City>,
+    @InjectEntityManager()
+    private readonly entityManager: EntityManager,
     private readonly configService: ConfigService
   ) {
-    // cron.schedule('*/1 * * * *', () => {
-    //   this.saveAverage();
-    // });
-
-    cron.schedule('*/1 * * * *', () => {
+    cron.schedule('*/5 * * * *', () => {
+      this.saveAverage();
+    });
+    cron.schedule('*/3 * * * *', () => {
       this.savePollutionInformation();
     });
-
-    // cron.schedule('*/1 * * * *', () => {
-    //   this.saveStations();
-    // });
+    cron.schedule('0 2 * * *', () => {
+      this.saveStations();
+    });
   }
 
   hasNullValues(obj: Record<string, any>): boolean {
@@ -133,33 +133,79 @@ export class MapService {
 
   async savePollutionData(data) {
     try {
+      const {
+        dataTime,
+        sidoName,
+        stationName,
+        pm10Value,
+        pm10Grade,
+        pm25Value,
+        pm25Grade,
+        no2Value,
+        no2Grade,
+        o3Value,
+        o3Grade,
+        so2Value,
+        so2Grade,
+        coValue,
+        coGrade,
+      } = data;
       const foundStation = await this.stationsRepository.findOne({
-        where: { stationName: data.stationName },
-        select: { id: true },
+        where: { stationName },
         relations: {
-          pollutions: true,
+          pollution: true,
         },
       });
 
+      console.log(foundStation);
+
       if (!foundStation) {
-        console.log(`등록된 ${data.stationName} 측정소가 없습니다.`);
+        console.log(`등록된 ${stationName} 측정소가 없습니다.`);
         console.log('found station: ', foundStation);
         return;
       } else if (foundStation) {
-        if (!foundStation.pollutions) {
-          this.pollutionsRepository.save({
-            ...data,
-            stationId: foundStation.id,
-          });
+        if (!foundStation.pollution) {
           console.log(
-            `새로운 ${data.stationName} 측정소의 측정값을 업로드합니다.`
+            `새로운 ${foundStation.stationName} 측정소의 측정값을 업로드합니다.`
           );
+          await this.pollutionsRepository.save({
+            stationId: foundStation.id,
+            dataTime,
+            sidoName,
+            stationName,
+            pm10Value,
+            pm10Grade,
+            pm25Value,
+            pm25Grade,
+            no2Value,
+            no2Grade,
+            o3Value,
+            o3Grade,
+            so2Value,
+            so2Grade,
+            coValue,
+            coGrade,
+          });
         } else {
-          this.pollutionsRepository.update(
-            { id: foundStation.pollutions.id },
-            { ...data }
+          console.log(
+            `${foundStation.stationName} 측정소의 측정값을 업데이트 합니다.`
           );
-          console.log(`${foundStation.id} 측정소의 측정값을 업데이트 합니다.`);
+          console.log(data);
+          await this.pollutionsRepository.update(foundStation.pollution.id, {
+            dataTime,
+            pm10Value,
+            pm10Grade,
+            pm25Value,
+            pm25Grade,
+            no2Value,
+            no2Grade,
+            o3Value,
+            o3Grade,
+            so2Value,
+            so2Grade,
+            coValue,
+            coGrade,
+          });
         }
       }
       return 'save air pollution data';
@@ -321,19 +367,26 @@ export class MapService {
     const { minLat, maxLat, minLng, maxLng } = dto;
 
     try {
-      const data = await this.pollutionsRepository
-        .createQueryBuilder('pollutions')
-        .innerJoinAndSelect('pollutions.station', 'stations')
-        .addSelect(['stations.dm_y', 'stations.dm_x'])
-        .where('stations.dm_x BETWEEN :minLat AND :maxLat', {
-          minLat,
-          maxLat,
-        })
-        .andWhere('stations.dm_y BETWEEN :minLng AND :maxLng', {
-          minLng,
-          maxLng,
-        })
-        .getMany();
+      const rawQuery = `
+        SELECT 
+          p.*, 
+          s.id as station_id,
+          s.station_name,
+          s.addr,
+          s.dm_x,
+          s.dm_y
+        FROM 
+          pollutions p 
+        INNER JOIN 
+          stations s 
+        ON 
+          p.station_id = s.id 
+        WHERE 
+          s.dm_x BETWEEN $1 AND $2 
+          AND s.dm_y BETWEEN $3 AND $4
+      `;
+      const parameters = [minLat, maxLat, minLng, maxLng];
+      const data = await this.entityManager.query(rawQuery, parameters);
 
       return data;
     } catch (e) {

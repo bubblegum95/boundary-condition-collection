@@ -14,7 +14,7 @@ export class Stations {
   id: number;
 
   @Column({ type: 'varchar', nullable: false, length: 50, unique: true })
-  // @Index('station_name_index')
+  @Index('station_name_index')
   stationName: string;
 
   @Column({ type: 'varchar', nullable: false, length: 100, unique: true })
@@ -36,8 +36,8 @@ export class Stations {
   })
   dmY: number; // 경도(longitude)
 
-  @OneToOne(() => Pollutions, (pollutions) => pollutions.stations, {
+  @OneToOne(() => Pollutions, (pollution) => pollution.station, {
     eager: true,
   })
-  pollutions: Pollutions;
+  pollution: Pollutions;
 }
