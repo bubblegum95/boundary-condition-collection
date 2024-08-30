@@ -6,6 +6,10 @@ import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { MapModule } from './map/map.module';
 import { RedisModule } from './redis/redis.module';
+import { WinstonModule } from 'nest-winston';
+import { LoggingInterceptor } from './loggingInterceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { winstonConfig } from '../config/winston.config';
 
 const typeOrmModuleOptions = {
   useFactory: async (
@@ -21,7 +25,7 @@ const typeOrmModuleOptions = {
     entities: [__dirname + '/**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/migrations/*{.ts,.js}'],
     synchronize: configService.get('POSTGRES_SYNC'),
-    logging: ['query', 'error'], // row query 출력
+    logging: ['query', 'error'],
     retryAttempts: 5,
     retryDelay: 3000,
     ssl: {
@@ -37,10 +41,19 @@ const typeOrmModuleOptions = {
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    WinstonModule.forRoot({
+      ...winstonConfig,
+    }),
     MapModule,
     RedisModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+  ],
 })
 export class AppModule {}

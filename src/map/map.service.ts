@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { Pollutions } from './entities/pollutions.entity';
@@ -14,6 +14,9 @@ import GradeThresholds from './type/grade-thresholds.interface';
 import { gradeThresholds } from './type/grade-thresholds.type';
 import { sidoName } from './type/sido-name.type';
 import { City } from './entities/city.entity';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
+import { winstonConfig } from '../../config/winston.config';
 
 @Injectable()
 export class MapService {
@@ -28,12 +31,13 @@ export class MapService {
     private readonly cityRepository: Repository<City>,
     @InjectEntityManager()
     private readonly entityManager: EntityManager,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
-    cron.schedule('*/5 * * * *', () => {
+    cron.schedule('*/1 * * * *', () => {
       this.saveAverage();
     });
-    cron.schedule('*/3 * * * *', () => {
+    cron.schedule('*/10 * * * *', () => {
       this.savePollutionInformation();
     });
     cron.schedule('0 2 * * *', () => {
@@ -47,7 +51,7 @@ export class MapService {
 
   hasNullValues(obj: Record<string, any>): boolean {
     for (const key in obj) {
-      console.log('key', key);
+      this.logger.debug('key name: ', key);
       if (
         obj[key] === null ||
         obj[key] === undefined ||
@@ -62,6 +66,7 @@ export class MapService {
   }
 
   async savePollutionInformation() {
+    this.logger.debug('start to fetch air pollution data');
     try {
       const serviceKey = this.configService.get('SERVICE_KEY');
       const returnType = 'json';
@@ -74,8 +79,6 @@ export class MapService {
 
       if (response.ok) {
         const data = await response.json();
-        // this.saveDataToFile(data.response.body.items);
-
         for (const item of data.response.body.items) {
           const {
             dataTime,
@@ -126,16 +129,21 @@ export class MapService {
             coGrade,
           };
           await this.savePollutionData(data);
+          this.logger.info(
+            'fetch and save pollution informations successfully'
+          );
         }
       } else {
-        throw new Error('Failed to fetch pollution data');
+        throw new Error('Failed to fetch pollution data. api was not working.');
       }
     } catch (e) {
-      throw e;
+      this.logger.error(`Faild to fetch pollution data`);
+      this.logger.verbose(e);
     }
   }
 
   async savePollutionData(data) {
+    this.logger.debug('start save pollution data.');
     try {
       const {
         dataTime,
@@ -161,17 +169,15 @@ export class MapService {
         },
       });
 
-      console.log(foundStation);
-
       if (!foundStation) {
-        console.log(`등록된 ${stationName} 측정소가 없습니다.`);
-        console.log('found station: ', foundStation);
+        this.logger.debug(`등록된 ${stationName} 측정소가 없습니다.`);
         return;
       } else if (foundStation) {
         if (!foundStation.pollution) {
-          console.log(
-            `새로운 ${foundStation.stationName} 측정소의 측정값을 업로드합니다.`
+          this.logger.debug(
+            `새로운 ${foundStation.stationName} 측정소의 측정값을 추가합니다.`
           );
+
           await this.pollutionsRepository.save({
             stationId: foundStation.id,
             dataTime,
@@ -191,10 +197,10 @@ export class MapService {
             coGrade,
           });
         } else {
-          console.log(
+          this.logger.debug(
             `${foundStation.stationName} 측정소의 측정값을 업데이트 합니다.`
           );
-          console.log(data);
+
           await this.pollutionsRepository.update(foundStation.pollution.id, {
             dataTime,
             pm10Value,
@@ -212,8 +218,11 @@ export class MapService {
           });
         }
       }
-      return 'save air pollution data';
+
+      return;
     } catch (e) {
+      this.logger.error('failed to save pollution data');
+      this.logger.verbose(e);
       throw e;
     }
   }
@@ -227,9 +236,11 @@ export class MapService {
     );
     const jsonData = JSON.stringify(data, null, 2);
     await fs.writeFile(filePath, jsonData, 'utf8');
+    this.logger.info('save air condition data to file');
   }
 
   async saveStations() {
+    this.logger.debug('start to save station informations');
     try {
       const pageNo = 1;
       const numOfRows = 1000;
@@ -239,22 +250,21 @@ export class MapService {
       const response = await fetch(url);
 
       if (response.ok) {
-        console.log('response ok');
         const data = await response.json();
-        console.log(data);
+        this.logger.debug({ data });
 
         for (const item of data.response.body.items) {
-          console.log('station info: ', item);
+          this.logger.verbose('station: ', item);
           const foundStation = await this.stationsRepository.findOne({
             where: { stationName: item.stationName },
             select: ['id', 'stationName'],
           });
 
           if (!foundStation) {
-            console.log(`${item.stationName}을 업로드합니다.`);
             await this.stationsRepository.save({ ...item });
+            this.logger.info(`새로운 ${item.stationName}을 업로드합니다.`);
           } else {
-            console.log(`${item.stationName}이 이미 존재합니다.`);
+            this.logger.info(`${item.stationName}이 이미 존재합니다.`);
             return;
           }
         }
@@ -262,26 +272,31 @@ export class MapService {
         throw new BadRequestException('응답 없음');
       }
     } catch (e) {
+      this.logger.error('측정소 정보를 업데이트 할 수 없습니다.');
       throw e;
     }
   }
 
   async saveAverage() {
+    this.logger.debug('start to save average of city air pollution');
+    console.log(winstonConfig.transports); // 트랜스포트 상태 출력
     try {
-      const serviceKey = this.configService.get('SERVICE_KEY2');
-      const searchCondition = 'HOUR';
-      const pageNo = 1;
-      const numOfRows = 30;
+      const serviceKey = this.configService.get('SERVICE_KEY');
       const returnType = 'json';
 
       for (let i = 0; i < sidoName.length; i++) {
-        const url = `http://apis.data.go.kr/B552584/ArpltnStatsSvc/getCtprvnMesureSidoLIst?sidoName=${sidoName[i]}&searchCondition=${searchCondition}&pageNo=${pageNo}&numOfRows=${numOfRows}&returnType=${returnType}&serviceKey=${serviceKey}`;
+        const url = `https://apis.data.go.kr/B552584/ArpltnStatsSvc/getCtprvnMesureSidoLIst?serviceKey=${serviceKey}&returnType=${returnType}&numOfRows=100&pageNo=1&sidoName=${sidoName[i]}&searchCondition=HOUR`;
+
         const response = await fetch(url);
+        this.logger.verbose(url, response);
 
         if (response.ok) {
-          console.log(response);
-          console.log(`${i} 지역 측정소를 업데이트합니다.`);
+          this.logger.debug(
+            `${sidoName[i]} 지역 측정소 평균값을 업데이트합니다.`
+          );
+
           const data = await response.json();
+          this.logger.verbose(data);
 
           for (const item of data.response.body.items) {
             const {
@@ -306,8 +321,9 @@ export class MapService {
               so2Value,
               coValue,
             };
+            this.logger.debug(checkList);
             const hasNull = this.hasNullValues(checkList);
-            console.log('has null value: ', hasNull);
+
             if (hasNull) continue;
 
             const pm10Grade = await this.saveGrade('pm10', item.pm10Value);
@@ -316,17 +332,19 @@ export class MapService {
             const o3Grade = await this.saveGrade('o3', item.o3Value);
             const coGrade = await this.saveGrade('co', item.coValue);
             const so2Grade = await this.saveGrade('so2', item.so2Value);
+
             let cities = await this.cityRepository.find({
               where: [{ sidoName, guName: cityName }],
               select: { code: true },
             });
 
+            console.log(cities);
             if (!cities[0]) {
               cities = await this.cityRepository.find({
                 where: [{ sidoName, gunName: cityName }],
               });
+              console.log(cities);
             }
-
             if (!cities[0]) {
               console.log(
                 `해당 ${sidoName} ${cityName}를 데이터베이스에서 찾을 수 없습니다.`
@@ -334,10 +352,11 @@ export class MapService {
               continue;
             }
             const codes = cities.map((city) => Number(city.code));
+            this.logger.debug(codes);
 
-            await this.averageRepository.save({
+            const data = await this.averageRepository.save({
               ...item,
-              cityCodes: codes,
+              cityCodes: codes, // 배열임
               pm10Grade,
               pm25Grade,
               no2Grade,
@@ -345,12 +364,13 @@ export class MapService {
               coGrade,
               so2Grade,
             });
+
+            this.logger.debug(data);
           }
-        } else {
         }
       }
     } catch (e) {
-      throw e;
+      this.logger.error(`failed to save average of city air pollution. ${e}`);
     }
   }
 
@@ -368,6 +388,7 @@ export class MapService {
   }
 
   async getPollutionInformation(dto: LocationInfoDto) {
+    this.logger.debug('start to get air pollution data');
     const { minLat, maxLat, minLng, maxLng } = dto;
 
     try {
@@ -392,16 +413,18 @@ export class MapService {
       const parameters = [minLat, maxLat, minLng, maxLng];
       const data = await this.entityManager.query(rawQuery, parameters);
 
+      this.logger.debug('get air pollution data successfully');
       return data;
     } catch (e) {
+      this.logger.error('failed to get air pollution data.', { e });
       throw e;
     }
   }
 
   async getAverage() {
+    this.logger.debug('start to get average of city air pollution data');
     try {
       const cityAverages = await this.averageRepository.find();
-      console.log('get average: ', cityAverages);
 
       let data = [];
       for (const cityAverage of cityAverages) {
@@ -420,9 +443,11 @@ export class MapService {
           });
         }
       }
-      console.log('city average data: ', data);
+      // this.logger.info('get average of city air pollution data successfully');
+
       return data;
     } catch (e) {
+      this.logger.error('failed to get average of city air pollution data');
       throw e;
     }
   }
