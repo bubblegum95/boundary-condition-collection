@@ -82,12 +82,19 @@ export class MapService {
     }
   }
 
-  async findStations(stationName) {
+  async findStationWithPollution(stationName: string) {
     return await this.stationsRepository.findOne({
       where: { stationName },
       relations: {
         pollution: true,
       },
+    });
+  }
+
+  async findStation(stationName: string) {
+    return await this.stationsRepository.findOne({
+      where: { stationName: stationName },
+      select: ['id', 'stationName'],
     });
   }
 
@@ -112,7 +119,7 @@ export class MapService {
         coGrade,
       } = data;
 
-      const foundStation = await this.findStations(stationName);
+      const foundStation = await this.findStationWithPollution(stationName);
 
       this.logger.debug(
         `찾은 측정소: ${foundStation.id} : ${foundStation.stationName}`
@@ -283,10 +290,8 @@ export class MapService {
 
       for (const item of data.response.body.items) {
         this.logger.verbose('station: ', item);
-        const foundStation = await this.stationsRepository.findOne({
-          where: { stationName: item.stationName },
-          select: ['id', 'stationName'],
-        });
+
+        const foundStation = await this.findStation(item.stationName);
 
         if (!foundStation) {
           await this.stationsRepository.save({ ...item });
@@ -302,23 +307,77 @@ export class MapService {
     }
   }
 
+  async fetchAverage(sidoName: string) {
+    const serviceKey = this.configService.get('SERVICE_KEY');
+    const returnType = 'json';
+    const url = `https://apis.data.go.kr/B552584/ArpltnStatsSvc/getCtprvnMesureSidoLIst?serviceKey=${serviceKey}&returnType=${returnType}&numOfRows=100&pageNo=1&sidoName=${sidoName}&searchCondition=HOUR`;
+    const response = await fetch(url);
+
+    if (response.ok) {
+      const data = response.json();
+      return data;
+    }
+  }
+
+  async findCityInGuName(sidoName, guName) {
+    const data = await this.cityRepository.find({
+      where: [{ sidoName, guName }],
+      select: { code: true },
+    });
+
+    if (data[0]) {
+      return data;
+    } else {
+      return;
+    }
+  }
+
+  async findCityInGunName(sidoName: string, gunName: string) {
+    const data = await this.cityRepository.find({
+      where: [{ sidoName, gunName }],
+    });
+
+    if (data[0]) {
+      return data;
+    } else {
+      return;
+    }
+  }
+
+  async saveAverageInfo(
+    item,
+    cityCodes,
+    pm10Grade,
+    pm25Grade,
+    no2Grade,
+    o3Grade,
+    coGrade,
+    so2Grade
+  ) {
+    const data = await this.averageRepository.save({
+      ...item,
+      cityCodes,
+      pm10Grade,
+      pm25Grade,
+      no2Grade,
+      o3Grade,
+      coGrade,
+      so2Grade,
+    });
+
+    if (data) {
+      return data;
+    } else {
+      return;
+    }
+  }
+
   async saveAverage() {
     this.logger.debug('start to save average of city air pollution');
     try {
-      const serviceKey = this.configService.get('SERVICE_KEY');
-      const returnType = 'json';
-
       for (let i = 0; i < sidoName.length; i++) {
-        const url = `https://apis.data.go.kr/B552584/ArpltnStatsSvc/getCtprvnMesureSidoLIst?serviceKey=${serviceKey}&returnType=${returnType}&numOfRows=100&pageNo=1&sidoName=${sidoName[i]}&searchCondition=HOUR`;
-        const response = await fetch(url);
-
-        if (response.ok) {
-          this.logger.debug(
-            `${sidoName[i]} 지역 측정소 평균값을 업데이트합니다.`
-          );
-
-          const data = await response.json();
-
+        setInterval(async () => {
+          const data = await this.fetchAverage(sidoName[i]);
           for (const item of data.response.body.items) {
             const {
               dataTime,
@@ -354,48 +413,45 @@ export class MapService {
             const coGrade = await this.saveGrade('co', item.coValue);
             const so2Grade = await this.saveGrade('so2', item.so2Value);
 
-            let cities = await this.cityRepository.find({
-              where: [{ sidoName, guName: cityName }],
-              select: { code: true },
-            });
-
+            let cities = await this.findCityInGuName(sidoName, cityName);
             this.logger.verbose(cities);
-            if (!cities[0]) {
-              cities = await this.cityRepository.find({
-                where: [{ sidoName, gunName: cityName }],
-              });
+
+            if (!cities) {
+              cities = await this.findCityInGunName(sidoName, cityName);
               this.logger.verbose(cities);
             }
-            if (!cities[0]) {
+            if (!cities) {
               this.logger.verbose(
-                `해당 ${sidoName} ${cityName}를 city table 에서 찾을 수 없습니다.`
+                `해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`
               );
               continue;
             }
             const codes = cities.map((city) => Number(city.code));
             this.logger.verbose(`codes: ${codes}`);
 
-            const data = await this.averageRepository.save({
-              ...item,
-              cityCodes: codes, // 배열임
+            const data = await this.saveAverageInfo(
+              item,
+              codes,
               pm10Grade,
               pm25Grade,
               no2Grade,
               o3Grade,
               coGrade,
-              so2Grade,
-            });
+              so2Grade
+            );
 
-            if (data) {
-              this.logger.verbose(`saved pollution data: ${data}`);
-            } else {
-              throw new Error('평균값 데이터를 저장할 수 없습니다.');
+            if (!data) {
+              this.logger.error('평균값 데이터를 저장할 수 없습니다.');
+              continue;
             }
+
+            this.logger.verbose(`saved pollution data: ${data}`);
           }
-        }
+        }, 10000); // 10초 간격으로 실행
       }
-    } catch (e) {
-      this.logger.error(`failed to save average of city air pollution. ${e}`);
+    } catch (error) {
+      this.logger.error(`failed to save average of city air pollution.`);
+      this.logger.error(error);
     }
   }
 
@@ -450,8 +506,8 @@ export class MapService {
     this.logger.debug('start to get average of city air pollution data');
     try {
       const cityAverages = await this.averageRepository.find();
-
       let data = [];
+
       for (const cityAverage of cityAverages) {
         for (const cityCode of cityAverage.cityCodes) {
           data.push({
