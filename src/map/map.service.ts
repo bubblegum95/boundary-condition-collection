@@ -33,12 +33,12 @@ export class MapService {
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
-    // cron.schedule('*/1 * * * *', () => {
-    //   this.saveAverage();
-    // });
-    cron.schedule('*/5 * * * *', () => {
-      this.checkPollutionInformation();
+    cron.schedule('*/1 * * * *', () => {
+      this.saveAverage();
     });
+    // cron.schedule('*/5 * * * *', () => {
+    //   this.checkPollutionInformation();
+    // });
     cron.schedule('0 2 * * *', () => {
       this.saveStations();
     });
@@ -82,6 +82,15 @@ export class MapService {
     }
   }
 
+  async findStations(stationName) {
+    return await this.stationsRepository.findOne({
+      where: { stationName },
+      relations: {
+        pollution: true,
+      },
+    });
+  }
+
   async savePollutionData(data) {
     this.logger.debug('start save pollution data.');
     try {
@@ -103,12 +112,7 @@ export class MapService {
         coGrade,
       } = data;
 
-      const foundStation = await this.stationsRepository.findOne({
-        where: { stationName },
-        relations: {
-          pollution: true,
-        },
-      });
+      const foundStation = await this.findStations(stationName);
 
       this.logger.debug(
         `찾은 측정소: ${foundStation.id} : ${foundStation.stationName}`
@@ -171,6 +175,7 @@ export class MapService {
       throw e;
     }
   }
+
   async checkPollutionInformation() {
     this.logger.debug('start to fetch air pollution data');
     try {
@@ -199,6 +204,7 @@ export class MapService {
           so2Value,
           coValue,
         };
+
         if (this.hasNullValues(checkList)) continue;
 
         const pm10Grade = await this.saveGrade('pm10', pm10Value);
@@ -252,37 +258,43 @@ export class MapService {
     }
   }
 
+  async fetchStationData() {
+    this.logger.debug('start to fetch station informations');
+    const pageNo = 1;
+    const numOfRows = 1000;
+    const returnType = 'json';
+    const serviceKey = this.configService.get('SERVICE_KEY');
+    const url = `http://apis.data.go.kr/B552584/MsrstnInfoInqireSvc/getMsrstnList?&pageNo=${pageNo}&numOfRows=${numOfRows}&serviceKey=${serviceKey}&returnType=${returnType}`;
+    const response = await fetch(url);
+
+    if (response.ok) {
+      const data = await response.json();
+      return data;
+    } else {
+      throw new BadRequestException('응답 없음');
+    }
+  }
+
   async saveStations() {
     this.logger.debug('start to save station informations');
     try {
-      const pageNo = 1;
-      const numOfRows = 1000;
-      const returnType = 'json';
-      const serviceKey = this.configService.get('SERVICE_KEY');
-      const url = `http://apis.data.go.kr/B552584/MsrstnInfoInqireSvc/getMsrstnList?&pageNo=${pageNo}&numOfRows=${numOfRows}&serviceKey=${serviceKey}&returnType=${returnType}`;
-      const response = await fetch(url);
+      const data = await this.fetchStationData();
+      this.logger.debug(data);
 
-      if (response.ok) {
-        const data = await response.json();
-        this.logger.debug({ data });
+      for (const item of data.response.body.items) {
+        this.logger.verbose('station: ', item);
+        const foundStation = await this.stationsRepository.findOne({
+          where: { stationName: item.stationName },
+          select: ['id', 'stationName'],
+        });
 
-        for (const item of data.response.body.items) {
-          this.logger.verbose('station: ', item);
-          const foundStation = await this.stationsRepository.findOne({
-            where: { stationName: item.stationName },
-            select: ['id', 'stationName'],
-          });
-
-          if (!foundStation) {
-            await this.stationsRepository.save({ ...item });
-            this.logger.debug(`새로운 ${item.stationName}을 업로드합니다.`);
-          } else {
-            this.logger.debug(`${item.stationName}이 이미 존재합니다.`);
-            return;
-          }
+        if (!foundStation) {
+          await this.stationsRepository.save({ ...item });
+          this.logger.debug(`새로운 ${item.stationName}을 업로드합니다.`);
+        } else {
+          this.logger.debug(`${item.stationName}이 이미 존재합니다.`);
+          return;
         }
-      } else {
-        throw new BadRequestException('응답 없음');
       }
     } catch (e) {
       this.logger.error('측정소 정보를 업데이트 할 수 없습니다.');

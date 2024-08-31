@@ -64,20 +64,18 @@ let MapService = class MapService {
         this.entityManager = entityManager;
         this.configService = configService;
         this.logger = logger;
-        cron.schedule('*/5 * * * *', () => {
-            this.savePollutionInformation();
+        cron.schedule('*/1 * * * *', () => {
+            this.saveAverage();
         });
         cron.schedule('0 2 * * *', () => {
             this.saveStations();
         });
         cron.schedule('0 1 1 * *', () => {
-            const data = this.savePollutionInformation();
-            this.saveDataToFile(data);
+            this.saveDataToFile();
         });
     }
     hasNullValues(obj) {
         for (const key in obj) {
-            this.logger.debug(`key name: ${key}`);
             if (obj[key] === null ||
                 obj[key] === undefined ||
                 obj[key] === '' ||
@@ -88,95 +86,45 @@ let MapService = class MapService {
         }
         return false;
     }
-    async savePollutionInformation() {
+    async fetchPollutionData() {
         this.logger.debug('start to fetch air pollution data');
-        try {
-            const serviceKey = this.configService.get('SERVICE_KEY');
-            const returnType = 'json';
-            const numOfRows = 661;
-            const pageNo = 1;
-            const sidoName = '전국';
-            const ver = '1.0';
-            const url = `http://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?sidoName=${sidoName}&pageNo=${pageNo}&numOfRows=${numOfRows}&returnType=${returnType}&serviceKey=${serviceKey}&ver=${ver}`;
-            const response = await fetch(url);
-            if (response.ok) {
-                const data = await response.json();
-                for (const item of data.response.body.items) {
-                    this.logger.verbose(item);
-                    console.log(`측정값: ${item}`);
-                    const { dataTime, sidoName, stationName, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, } = item;
-                    const checkList = {
-                        dataTime,
-                        sidoName,
-                        stationName,
-                        pm10Value,
-                        pm25Value,
-                        no2Value,
-                        o3Value,
-                        so2Value,
-                        coValue,
-                    };
-                    if (this.hasNullValues(checkList))
-                        continue;
-                    const pm10Grade = await this.saveGrade('pm10', pm10Value);
-                    const pm25Grade = await this.saveGrade('pm25', pm25Value);
-                    const no2Grade = await this.saveGrade('no2', no2Value);
-                    const o3Grade = await this.saveGrade('o3', o3Value);
-                    const coGrade = await this.saveGrade('co', coValue);
-                    const so2Grade = await this.saveGrade('so2', so2Value);
-                    const data = {
-                        dataTime,
-                        sidoName,
-                        stationName,
-                        pm10Value,
-                        pm10Grade,
-                        pm25Value,
-                        pm25Grade,
-                        no2Value,
-                        no2Grade,
-                        o3Value,
-                        o3Grade,
-                        so2Value,
-                        so2Grade,
-                        coValue,
-                        coGrade,
-                    };
-                    await this.savePollutionData(data);
-                    this.logger.debug('fetch and save pollution informations successfully');
-                    console.log('fetch and save pollution informations successfully');
-                }
-            }
-            else {
-                throw new Error('Failed to fetch pollution data. api was not working.');
-            }
+        const serviceKey = this.configService.get('SERVICE_KEY');
+        const returnType = 'json';
+        const numOfRows = 661;
+        const pageNo = 1;
+        const sidoName = '전국';
+        const ver = '1.0';
+        const url = `http://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?sidoName=${sidoName}&pageNo=${pageNo}&numOfRows=${numOfRows}&returnType=${returnType}&serviceKey=${serviceKey}&ver=${ver}`;
+        const response = await fetch(url);
+        if (response.ok) {
+            const data = await response.json();
+            return data;
         }
-        catch (e) {
-            this.logger.error(`Faild to fetch pollution data`);
-            this.logger.verbose(e);
-            console.log(e);
+        else {
+            throw new Error('Failed to fetch pollution data. api was not working.');
         }
+    }
+    async findStations(stationName) {
+        return await this.stationsRepository.findOne({
+            where: { stationName },
+            relations: {
+                pollution: true,
+            },
+        });
     }
     async savePollutionData(data) {
         this.logger.debug('start save pollution data.');
-        console.log('start save pollution data.');
         try {
             const { dataTime, sidoName, stationName, pm10Value, pm10Grade, pm25Value, pm25Grade, no2Value, no2Grade, o3Value, o3Grade, so2Value, so2Grade, coValue, coGrade, } = data;
-            const foundStation = await this.stationsRepository.findOne({
-                where: { stationName },
-                relations: {
-                    pollution: true,
-                },
-            });
-            console.log('found station: ', foundStation);
+            const foundStation = await this.findStations(stationName);
+            this.logger.debug(`찾은 측정소: ${foundStation.id} : ${foundStation.stationName}`);
             if (!foundStation) {
                 this.logger.debug(`등록된 ${stationName} 측정소가 없습니다.`);
-                console.log(`등록된 ${stationName} 측정소가 없습니다.`);
                 return;
             }
             else if (foundStation) {
                 if (!foundStation.pollution) {
                     this.logger.debug(`새로운 ${foundStation.stationName} 측정소의 측정값을 추가합니다.`);
-                    console.log(`새로운 ${foundStation.stationName} 측정소의 측정값을 추가합니다.`);
                     await this.pollutionsRepository.save({
                         stationId: foundStation.id,
                         dataTime,
@@ -198,7 +146,6 @@ let MapService = class MapService {
                 }
                 else {
                     this.logger.debug(`${foundStation.stationName} 측정소의 측정값을 업데이트 합니다.`);
-                    console.log(`${foundStation.stationName} 측정소의 측정값을 업데이트 합니다.`);
                     await this.pollutionsRepository.update(foundStation.pollution.id, {
                         dataTime,
                         pm10Value,
@@ -224,43 +171,107 @@ let MapService = class MapService {
             throw e;
         }
     }
-    async saveDataToFile(data) {
-        const fileName = (0, moment_1.default)().format('YYYY-MM-DD HH:mm:ss');
-        const filePath = path.join(process.cwd(), 'air_condition', `${fileName}.json`);
-        const jsonData = JSON.stringify(data, null, 2);
-        await fs_1.promises.writeFile(filePath, jsonData, 'utf8');
-        this.logger.debug('save air condition data to file');
+    async checkPollutionInformation() {
+        this.logger.debug('start to fetch air pollution data');
+        try {
+            const data = await this.fetchPollutionData();
+            for (const item of data.response.body.items) {
+                this.logger.verbose(item);
+                const { dataTime, sidoName, stationName, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, } = item;
+                const checkList = {
+                    dataTime,
+                    sidoName,
+                    stationName,
+                    pm10Value,
+                    pm25Value,
+                    no2Value,
+                    o3Value,
+                    so2Value,
+                    coValue,
+                };
+                if (this.hasNullValues(checkList))
+                    continue;
+                const pm10Grade = await this.saveGrade('pm10', pm10Value);
+                const pm25Grade = await this.saveGrade('pm25', pm25Value);
+                const no2Grade = await this.saveGrade('no2', no2Value);
+                const o3Grade = await this.saveGrade('o3', o3Value);
+                const coGrade = await this.saveGrade('co', coValue);
+                const so2Grade = await this.saveGrade('so2', so2Value);
+                const newData = {
+                    dataTime,
+                    sidoName,
+                    stationName,
+                    pm10Value,
+                    pm10Grade,
+                    pm25Value,
+                    pm25Grade,
+                    no2Value,
+                    no2Grade,
+                    o3Value,
+                    o3Grade,
+                    so2Value,
+                    so2Grade,
+                    coValue,
+                    coGrade,
+                };
+                await this.savePollutionData(newData);
+                this.logger.debug('fetch and save pollution informations successfully');
+            }
+        }
+        catch (e) {
+            this.logger.error(`Faild to fetch pollution data`);
+            this.logger.verbose(e);
+        }
+    }
+    async saveDataToFile() {
+        this.logger.debug('start to fetch air pollution data');
+        try {
+            const data = await this.fetchPollutionData();
+            const fileName = (0, moment_1.default)().format('YYYY-MM-DD HH:mm:ss');
+            const filePath = path.join(process.cwd(), 'air_condition', `${fileName}.json`);
+            const jsonData = JSON.stringify(data, null, 2);
+            await fs_1.promises.writeFile(filePath, jsonData, 'utf8');
+            this.logger.debug('save air condition data to file');
+        }
+        catch (error) {
+            this.logger.error('failed to save air pollution datas to file', error);
+        }
+    }
+    async fetchStationData() {
+        this.logger.debug('start to fetch station informations');
+        const pageNo = 1;
+        const numOfRows = 1000;
+        const returnType = 'json';
+        const serviceKey = this.configService.get('SERVICE_KEY');
+        const url = `http://apis.data.go.kr/B552584/MsrstnInfoInqireSvc/getMsrstnList?&pageNo=${pageNo}&numOfRows=${numOfRows}&serviceKey=${serviceKey}&returnType=${returnType}`;
+        const response = await fetch(url);
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        }
+        else {
+            throw new common_1.BadRequestException('응답 없음');
+        }
     }
     async saveStations() {
         this.logger.debug('start to save station informations');
         try {
-            const pageNo = 1;
-            const numOfRows = 1000;
-            const returnType = 'json';
-            const serviceKey = this.configService.get('SERVICE_KEY');
-            const url = `http://apis.data.go.kr/B552584/MsrstnInfoInqireSvc/getMsrstnList?&pageNo=${pageNo}&numOfRows=${numOfRows}&serviceKey=${serviceKey}&returnType=${returnType}`;
-            const response = await fetch(url);
-            if (response.ok) {
-                const data = await response.json();
-                this.logger.debug({ data });
-                for (const item of data.response.body.items) {
-                    this.logger.verbose('station: ', item);
-                    const foundStation = await this.stationsRepository.findOne({
-                        where: { stationName: item.stationName },
-                        select: ['id', 'stationName'],
-                    });
-                    if (!foundStation) {
-                        await this.stationsRepository.save({ ...item });
-                        this.logger.debug(`새로운 ${item.stationName}을 업로드합니다.`);
-                    }
-                    else {
-                        this.logger.debug(`${item.stationName}이 이미 존재합니다.`);
-                        return;
-                    }
+            const data = await this.fetchStationData();
+            this.logger.debug(data);
+            for (const item of data.response.body.items) {
+                this.logger.verbose('station: ', item);
+                const foundStation = await this.stationsRepository.findOne({
+                    where: { stationName: item.stationName },
+                    select: ['id', 'stationName'],
+                });
+                if (!foundStation) {
+                    await this.stationsRepository.save({ ...item });
+                    this.logger.debug(`새로운 ${item.stationName}을 업로드합니다.`);
                 }
-            }
-            else {
-                throw new common_1.BadRequestException('응답 없음');
+                else {
+                    this.logger.debug(`${item.stationName}이 이미 존재합니다.`);
+                    return;
+                }
             }
         }
         catch (e) {

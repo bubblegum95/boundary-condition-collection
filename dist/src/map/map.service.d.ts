@@ -17,9 +17,12 @@ export declare class MapService {
     private readonly logger;
     constructor(pollutionsRepository: Repository<Pollutions>, stationsRepository: Repository<Stations>, averageRepository: Repository<Average>, cityRepository: Repository<City>, entityManager: EntityManager, configService: ConfigService, logger: Logger);
     hasNullValues(obj: Record<string, any>): boolean;
-    savePollutionInformation(): Promise<void>;
+    fetchPollutionData(): Promise<any>;
+    findStations(stationName: any): Promise<Stations>;
     savePollutionData(data: any): Promise<void>;
-    saveDataToFile(data: any): Promise<void>;
+    checkPollutionInformation(): Promise<void>;
+    saveDataToFile(): Promise<void>;
+    fetchStationData(): Promise<any>;
     saveStations(): Promise<void>;
     saveAverage(): Promise<void>;
     saveGrade(type: keyof GradeThresholds, value: number): Promise<string>;
