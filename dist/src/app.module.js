@@ -50,9 +50,7 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
             }),
-            nest_winston_1.WinstonModule.forRoot({
-                ...winston_config_1.winstonConfig,
-            }),
+            nest_winston_1.WinstonModule.forRoot(winston_config_1.winstonConfig),
             map_module_1.MapModule,
             redis_module_1.RedisModule,
         ],

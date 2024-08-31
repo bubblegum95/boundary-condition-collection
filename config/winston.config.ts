@@ -2,23 +2,23 @@ import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 import * as path from 'path';
 
+const logFormat = winston.format.printf(
+  ({ level, message, label, timestamp }) => {
+    return `${timestamp} [${label}] ${level}: ${message}`;
+  }
+);
+
 export const winstonConfig = winston.createLogger({
+  level: 'silly',
   format: winston.format.combine(
     winston.format.label({ label: 'BOUNDARY CONDITION' }),
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.printf(({ level, message, label, timestamp }) => {
-      return `${timestamp} [${label}] ${level}: ${message}`;
-    })
+    logFormat
   ),
   transports: [
     new winston.transports.Console({
       level: 'silly',
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.printf(({ level, message, label, timestamp }) => {
-          return `${timestamp} [${label}] ${level}: ${message}`;
-        })
-      ),
+      format: winston.format.combine(winston.format.colorize(), logFormat),
     }),
     new winston.transports.DailyRotateFile({
       level: 'error',

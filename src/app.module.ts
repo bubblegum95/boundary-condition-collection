@@ -41,9 +41,7 @@ const typeOrmModuleOptions = {
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    WinstonModule.forRoot({
-      ...winstonConfig,
-    }),
+    WinstonModule.forRoot(winstonConfig),
     MapModule,
     RedisModule,
   ],

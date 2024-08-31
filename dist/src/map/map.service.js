@@ -55,7 +55,6 @@ const sido_name_type_1 = require("./type/sido-name.type");
 const city_entity_1 = require("./entities/city.entity");
 const nest_winston_1 = require("nest-winston");
 const winston_1 = require("winston");
-const winston_config_1 = require("../../config/winston.config");
 let MapService = class MapService {
     constructor(pollutionsRepository, stationsRepository, averageRepository, cityRepository, entityManager, configService, logger) {
         this.pollutionsRepository = pollutionsRepository;
@@ -65,10 +64,7 @@ let MapService = class MapService {
         this.entityManager = entityManager;
         this.configService = configService;
         this.logger = logger;
-        cron.schedule('*/1 * * * *', () => {
-            this.saveAverage();
-        });
-        cron.schedule('*/10 * * * *', () => {
+        cron.schedule('*/5 * * * *', () => {
             this.savePollutionInformation();
         });
         cron.schedule('0 2 * * *', () => {
@@ -81,7 +77,7 @@ let MapService = class MapService {
     }
     hasNullValues(obj) {
         for (const key in obj) {
-            this.logger.debug('key name: ', key);
+            this.logger.debug(`key name: ${key}`);
             if (obj[key] === null ||
                 obj[key] === undefined ||
                 obj[key] === '' ||
@@ -106,6 +102,8 @@ let MapService = class MapService {
             if (response.ok) {
                 const data = await response.json();
                 for (const item of data.response.body.items) {
+                    this.logger.verbose(item);
+                    console.log(`측정값: ${item}`);
                     const { dataTime, sidoName, stationName, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, } = item;
                     const checkList = {
                         dataTime,
@@ -144,7 +142,8 @@ let MapService = class MapService {
                         coGrade,
                     };
                     await this.savePollutionData(data);
-                    this.logger.info('fetch and save pollution informations successfully');
+                    this.logger.debug('fetch and save pollution informations successfully');
+                    console.log('fetch and save pollution informations successfully');
                 }
             }
             else {
@@ -154,10 +153,12 @@ let MapService = class MapService {
         catch (e) {
             this.logger.error(`Faild to fetch pollution data`);
             this.logger.verbose(e);
+            console.log(e);
         }
     }
     async savePollutionData(data) {
         this.logger.debug('start save pollution data.');
+        console.log('start save pollution data.');
         try {
             const { dataTime, sidoName, stationName, pm10Value, pm10Grade, pm25Value, pm25Grade, no2Value, no2Grade, o3Value, o3Grade, so2Value, so2Grade, coValue, coGrade, } = data;
             const foundStation = await this.stationsRepository.findOne({
@@ -166,13 +167,16 @@ let MapService = class MapService {
                     pollution: true,
                 },
             });
+            console.log('found station: ', foundStation);
             if (!foundStation) {
                 this.logger.debug(`등록된 ${stationName} 측정소가 없습니다.`);
+                console.log(`등록된 ${stationName} 측정소가 없습니다.`);
                 return;
             }
             else if (foundStation) {
                 if (!foundStation.pollution) {
                     this.logger.debug(`새로운 ${foundStation.stationName} 측정소의 측정값을 추가합니다.`);
+                    console.log(`새로운 ${foundStation.stationName} 측정소의 측정값을 추가합니다.`);
                     await this.pollutionsRepository.save({
                         stationId: foundStation.id,
                         dataTime,
@@ -194,6 +198,7 @@ let MapService = class MapService {
                 }
                 else {
                     this.logger.debug(`${foundStation.stationName} 측정소의 측정값을 업데이트 합니다.`);
+                    console.log(`${foundStation.stationName} 측정소의 측정값을 업데이트 합니다.`);
                     await this.pollutionsRepository.update(foundStation.pollution.id, {
                         dataTime,
                         pm10Value,
@@ -224,7 +229,7 @@ let MapService = class MapService {
         const filePath = path.join(process.cwd(), 'air_condition', `${fileName}.json`);
         const jsonData = JSON.stringify(data, null, 2);
         await fs_1.promises.writeFile(filePath, jsonData, 'utf8');
-        this.logger.info('save air condition data to file');
+        this.logger.debug('save air condition data to file');
     }
     async saveStations() {
         this.logger.debug('start to save station informations');
@@ -246,10 +251,10 @@ let MapService = class MapService {
                     });
                     if (!foundStation) {
                         await this.stationsRepository.save({ ...item });
-                        this.logger.info(`새로운 ${item.stationName}을 업로드합니다.`);
+                        this.logger.debug(`새로운 ${item.stationName}을 업로드합니다.`);
                     }
                     else {
-                        this.logger.info(`${item.stationName}이 이미 존재합니다.`);
+                        this.logger.debug(`${item.stationName}이 이미 존재합니다.`);
                         return;
                     }
                 }
@@ -265,18 +270,15 @@ let MapService = class MapService {
     }
     async saveAverage() {
         this.logger.debug('start to save average of city air pollution');
-        console.log(winston_config_1.winstonConfig.transports);
         try {
             const serviceKey = this.configService.get('SERVICE_KEY');
             const returnType = 'json';
             for (let i = 0; i < sido_name_type_1.sidoName.length; i++) {
                 const url = `https://apis.data.go.kr/B552584/ArpltnStatsSvc/getCtprvnMesureSidoLIst?serviceKey=${serviceKey}&returnType=${returnType}&numOfRows=100&pageNo=1&sidoName=${sido_name_type_1.sidoName[i]}&searchCondition=HOUR`;
                 const response = await fetch(url);
-                this.logger.verbose(url, response);
                 if (response.ok) {
                     this.logger.debug(`${sido_name_type_1.sidoName[i]} 지역 측정소 평균값을 업데이트합니다.`);
                     const data = await response.json();
-                    this.logger.verbose(data);
                     for (const item of data.response.body.items) {
                         const { dataTime, sidoName, cityName, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, } = item;
                         const checkList = {
@@ -290,7 +292,6 @@ let MapService = class MapService {
                             so2Value,
                             coValue,
                         };
-                        this.logger.debug(checkList);
                         const hasNull = this.hasNullValues(checkList);
                         if (hasNull)
                             continue;
@@ -304,19 +305,19 @@ let MapService = class MapService {
                             where: [{ sidoName, guName: cityName }],
                             select: { code: true },
                         });
-                        console.log(cities);
+                        this.logger.verbose(cities);
                         if (!cities[0]) {
                             cities = await this.cityRepository.find({
                                 where: [{ sidoName, gunName: cityName }],
                             });
-                            console.log(cities);
+                            this.logger.verbose(cities);
                         }
                         if (!cities[0]) {
-                            console.log(`해당 ${sidoName} ${cityName}를 데이터베이스에서 찾을 수 없습니다.`);
+                            this.logger.verbose(`해당 ${sidoName} ${cityName}를 city table 에서 찾을 수 없습니다.`);
                             continue;
                         }
                         const codes = cities.map((city) => Number(city.code));
-                        this.logger.debug(codes);
+                        this.logger.verbose(`codes: ${codes}`);
                         const data = await this.averageRepository.save({
                             ...item,
                             cityCodes: codes,
@@ -327,7 +328,12 @@ let MapService = class MapService {
                             coGrade,
                             so2Grade,
                         });
-                        this.logger.debug(data);
+                        if (data) {
+                            this.logger.verbose(`saved pollution data: ${data}`);
+                        }
+                        else {
+                            throw new Error('평균값 데이터를 저장할 수 없습니다.');
+                        }
                     }
                 }
             }
@@ -399,6 +405,7 @@ let MapService = class MapService {
                     });
                 }
             }
+            this.logger.debug('get average of city air pollution data successfully');
             return data;
         }
         catch (e) {

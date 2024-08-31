@@ -27,28 +27,35 @@ exports.winstonConfig = void 0;
 const winston = __importStar(require("winston"));
 require("winston-daily-rotate-file");
 const path = __importStar(require("path"));
+const logFormat = winston.format.printf(({ level, message, label, timestamp }) => {
+    return `${timestamp} [${label}] ${level}: ${message}`;
+});
 exports.winstonConfig = winston.createLogger({
-    format: winston.format.combine(winston.format.label({ label: 'BOUNDARY CONDITION' }), winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), winston.format.printf(({ level, message, label, timestamp }) => {
-        return `${timestamp} [${label}] ${level}: ${message}`;
-    })),
+    level: 'silly',
+    format: winston.format.combine(winston.format.label({ label: 'BOUNDARY CONDITION' }), winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), logFormat),
     transports: [
         new winston.transports.Console({
             level: 'silly',
-            format: winston.format.combine(winston.format.colorize(), winston.format.printf(({ level, message, label, timestamp }) => {
-                return `${timestamp} [${label}] ${level}: ${message}`;
-            })),
-        }),
-        new winston.transports.DailyRotateFile({
-            level: 'info',
-            filename: 'info-%DATE%.log',
-            dirname: path.join(process.cwd(), 'logs/info'),
-            datePattern: 'YYYY-MM-DD',
-            maxFiles: '3d',
+            format: winston.format.combine(winston.format.colorize(), logFormat),
         }),
         new winston.transports.DailyRotateFile({
             level: 'error',
             filename: 'error-%DATE%.log',
             dirname: path.join(process.cwd(), 'logs/error'),
+            datePattern: 'YYYY-MM-DD',
+            maxFiles: '3d',
+        }),
+        new winston.transports.DailyRotateFile({
+            level: 'warn',
+            filename: 'warn-%DATE%.log',
+            dirname: path.join(process.cwd(), 'logs/warn'),
+            datePattern: 'YYYY-MM-DD',
+            maxFiles: '3d',
+        }),
+        new winston.transports.DailyRotateFile({
+            level: 'info',
+            filename: 'info-%DATE%.log',
+            dirname: path.join(process.cwd(), 'logs/info'),
             datePattern: 'YYYY-MM-DD',
             maxFiles: '3d',
         }),
