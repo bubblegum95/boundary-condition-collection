@@ -20,6 +20,7 @@ export declare class MapService {
     fetchPollutionData(): Promise<any>;
     findStationWithPollution(stationName: string): Promise<Stations>;
     findStation(stationName: string): Promise<Stations>;
+    fixData(value: string): Promise<string>;
     savePollutionData(data: any): Promise<void>;
     checkPollutionInformation(): Promise<void>;
     saveDataToFile(): Promise<void>;

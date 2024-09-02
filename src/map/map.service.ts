@@ -98,6 +98,11 @@ export class MapService {
     });
   }
 
+  async fixData(value: string) {
+    const fixedData = Number.parseFloat(value).toFixed(2);
+    return fixedData.toString();
+  }
+
   async savePollutionData(data) {
     this.logger.debug('start save pollution data.');
     try {
@@ -189,7 +194,7 @@ export class MapService {
       const data = await this.fetchPollutionData();
       for (const item of data.response.body.items) {
         this.logger.verbose(item);
-        const {
+        let {
           dataTime,
           sidoName,
           stationName,
@@ -214,13 +219,19 @@ export class MapService {
 
         if (this.hasNullValues(checkList)) continue;
 
+        pm10Value = await this.fixData(pm10Value);
+        pm25Value = await this.fixData(pm25Value);
+        no2Value = await this.fixData(no2Value);
+        o3Value = await this.fixData(o3Value);
+        coValue = await this.fixData(coValue);
+        so2Value = await this.fixData(so2Value);
+
         const pm10Grade = await this.saveGrade('pm10', pm10Value);
         const pm25Grade = await this.saveGrade('pm25', pm25Value);
         const no2Grade = await this.saveGrade('no2', no2Value);
         const o3Grade = await this.saveGrade('o3', o3Value);
         const coGrade = await this.saveGrade('co', coValue);
         const so2Grade = await this.saveGrade('so2', so2Value);
-
         const newData = {
           dataTime,
           sidoName,

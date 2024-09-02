@@ -64,7 +64,7 @@ let MapService = class MapService {
         this.entityManager = entityManager;
         this.configService = configService;
         this.logger = logger;
-        cron.schedule('*/1 * * * *', () => {
+        cron.schedule('*/30 * * * *', () => {
             this.saveAverage();
         });
         cron.schedule('*/10 * * * *', () => {
@@ -120,6 +120,10 @@ let MapService = class MapService {
             where: { stationName: stationName },
             select: ['id', 'stationName'],
         });
+    }
+    async fixData(value) {
+        const fixedData = Number.parseFloat(value).toFixed(2);
+        return fixedData.toString();
     }
     async savePollutionData(data) {
         this.logger.debug('start save pollution data.');
@@ -186,7 +190,7 @@ let MapService = class MapService {
             const data = await this.fetchPollutionData();
             for (const item of data.response.body.items) {
                 this.logger.verbose(item);
-                const { dataTime, sidoName, stationName, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, } = item;
+                let { dataTime, sidoName, stationName, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, } = item;
                 const checkList = {
                     dataTime,
                     sidoName,
@@ -200,6 +204,12 @@ let MapService = class MapService {
                 };
                 if (this.hasNullValues(checkList))
                     continue;
+                pm10Value = await this.fixData(pm10Value);
+                pm25Value = await this.fixData(pm25Value);
+                no2Value = await this.fixData(no2Value);
+                o3Value = await this.fixData(o3Value);
+                coValue = await this.fixData(coValue);
+                so2Value = await this.fixData(so2Value);
                 const pm10Grade = await this.saveGrade('pm10', pm10Value);
                 const pm25Grade = await this.saveGrade('pm25', pm25Value);
                 const no2Grade = await this.saveGrade('no2', no2Value);
