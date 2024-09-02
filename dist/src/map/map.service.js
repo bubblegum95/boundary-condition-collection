@@ -444,7 +444,7 @@ let MapService = class MapService {
             const data = await this.entityManager.query(rawQuery, parameters);
             const list = [];
             const fixedAddr = data.map((d) => {
-                const { id, station_name, sido_name, data_time, pm10_value, pm10_grade, pm25_value, pm25_grade, no2_value, no2_grade, o3_value, o3_grade, so2_value, so2_grade, dm_x, dm_y, } = d;
+                const { station_name, sido_name, data_time, pm10_value, pm10_grade, pm25_value, pm25_grade, no2_value, no2_grade, o3_value, o3_grade, so2_value, so2_grade, dm_x, dm_y, } = d;
                 const newData = {
                     station_name,
                     sido_name,
@@ -460,12 +460,11 @@ let MapService = class MapService {
                     o3_grade,
                     so2_value,
                     so2_grade,
-                    dm_x,
-                    dm_y,
+                    dm_x: Number(dm_x),
+                    dm_y: Number(dm_y),
                 };
                 list.push(newData);
             });
-            console.log(list);
             this.logger.debug('get air pollution data successfully');
             return list;
         }
