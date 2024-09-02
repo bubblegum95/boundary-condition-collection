@@ -1,0 +1,45 @@
+import { EntityManager, Repository } from 'typeorm';
+import { Pollutions } from './entities/pollutions.entity';
+import { ConfigService } from '@nestjs/config';
+import { Stations } from './entities/stations.entity';
+import { LocationInfoDto } from './dto/locationInfo.dto';
+import { Average } from './entities/average.entity';
+import GradeThresholds from './type/grade-thresholds.interface';
+import { City } from './entities/city.entity';
+import { Logger } from 'winston';
+export declare class MapService {
+    private readonly pollutionsRepository;
+    private readonly stationsRepository;
+    private readonly averageRepository;
+    private readonly cityRepository;
+    private readonly entityManager;
+    private readonly configService;
+    private readonly logger;
+    constructor(pollutionsRepository: Repository<Pollutions>, stationsRepository: Repository<Stations>, averageRepository: Repository<Average>, cityRepository: Repository<City>, entityManager: EntityManager, configService: ConfigService, logger: Logger);
+    hasNullValues(obj: Record<string, any>): boolean;
+    fetchPollutionData(): Promise<any>;
+    findStationWithPollution(stationName: string): Promise<Stations>;
+    findStation(stationName: string): Promise<Stations>;
+    fixData(value: string): Promise<string>;
+    savePollutionData(data: any): Promise<void>;
+    checkPollutionInformation(): Promise<void>;
+    saveDataToFile(): Promise<void>;
+    fetchStationData(): Promise<any>;
+    saveStations(): Promise<void>;
+    fetchAverage(sidoName: string): Promise<any>;
+    findCityInGuName(sidoName: any, guName: any): Promise<City[]>;
+    findCityInGunName(sidoName: string, gunName: string): Promise<City[]>;
+    saveAverageInfo(item: object, cityCodes: number[], pm10Grade: string, pm25Grade: string, no2Grade: string, o3Grade: string, coGrade: string, so2Grade: string): Promise<{
+        cityCodes: number[];
+        pm10Grade: string;
+        pm25Grade: string;
+        no2Grade: string;
+        o3Grade: string;
+        coGrade: string;
+        so2Grade: string;
+    } & Average>;
+    saveAverage(): Promise<void>;
+    saveGrade(type: keyof GradeThresholds, value: number): Promise<string>;
+    getPollutionInformation(dto: LocationInfoDto): Promise<any>;
+    getAverage(): Promise<any[]>;
+}
