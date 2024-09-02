@@ -33,12 +33,12 @@ export class MapService {
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
-    cron.schedule('*/1 * * * *', () => {
+    cron.schedule('*/30 * * * *', () => {
       this.saveAverage();
     });
-    // cron.schedule('*/5 * * * *', () => {
-    //   this.checkPollutionInformation();
-    // });
+    cron.schedule('*/10 * * * *', () => {
+      this.checkPollutionInformation();
+    });
     cron.schedule('0 2 * * *', () => {
       this.saveStations();
     });
@@ -308,14 +308,21 @@ export class MapService {
   }
 
   async fetchAverage(sidoName: string) {
+    this.logger.debug(`sido name: ${sidoName}`);
     const serviceKey = this.configService.get('SERVICE_KEY');
     const returnType = 'json';
     const url = `https://apis.data.go.kr/B552584/ArpltnStatsSvc/getCtprvnMesureSidoLIst?serviceKey=${serviceKey}&returnType=${returnType}&numOfRows=100&pageNo=1&sidoName=${sidoName}&searchCondition=HOUR`;
     const response = await fetch(url);
 
     if (response.ok) {
+      console.log(response, url);
+
       const data = response.json();
+      this.logger.verbose(data);
       return data;
+    } else {
+      this.logger.debug('응답 없음');
+      return;
     }
   }
 
@@ -345,14 +352,14 @@ export class MapService {
   }
 
   async saveAverageInfo(
-    item,
-    cityCodes,
-    pm10Grade,
-    pm25Grade,
-    no2Grade,
-    o3Grade,
-    coGrade,
-    so2Grade
+    item: object,
+    cityCodes: number[],
+    pm10Grade: string,
+    pm25Grade: string,
+    no2Grade: string,
+    o3Grade: string,
+    coGrade: string,
+    so2Grade: string
   ) {
     const data = await this.averageRepository.save({
       ...item,
@@ -376,7 +383,7 @@ export class MapService {
     this.logger.debug('start to save average of city air pollution');
     try {
       for (let i = 0; i < sidoName.length; i++) {
-        setInterval(async () => {
+        setTimeout(async () => {
           const data = await this.fetchAverage(sidoName[i]);
           for (const item of data.response.body.items) {
             const {
@@ -414,11 +421,11 @@ export class MapService {
             const so2Grade = await this.saveGrade('so2', item.so2Value);
 
             let cities = await this.findCityInGuName(sidoName, cityName);
-            this.logger.verbose(cities);
+            console.log(cities);
 
             if (!cities) {
               cities = await this.findCityInGunName(sidoName, cityName);
-              this.logger.verbose(cities);
+              console.log(cities);
             }
             if (!cities) {
               this.logger.verbose(
@@ -445,9 +452,9 @@ export class MapService {
               continue;
             }
 
-            this.logger.verbose(`saved pollution data: ${data}`);
+            console.log(data);
           }
-        }, 10000); // 10초 간격으로 실행
+        }, i * 5000); // 5초 간격으로 실행
       }
     } catch (error) {
       this.logger.error(`failed to save average of city air pollution.`);

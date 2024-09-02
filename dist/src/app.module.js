@@ -29,7 +29,6 @@ const typeOrmModuleOptions = {
         password: configService.get('POSTGRES_PASSWORD'),
         database: configService.get('POSTGRES_DB'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        migrations: [__dirname + '/migrations/*{.ts,.js}'],
         synchronize: configService.get('POSTGRES_SYNC'),
         logging: ['query', 'error'],
         retryAttempts: 5,
