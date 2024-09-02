@@ -40,6 +40,6 @@ export declare class MapService {
     } & Average>;
     saveAverage(): Promise<void>;
     saveGrade(type: keyof GradeThresholds, value: number): Promise<string>;
-    getPollutionInformation(dto: LocationInfoDto): Promise<any>;
+    getPollutionInformation(dto: LocationInfoDto): Promise<any[]>;
     getAverage(): Promise<any[]>;
 }

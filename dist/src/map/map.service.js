@@ -442,8 +442,32 @@ let MapService = class MapService {
       `;
             const parameters = [minLat, maxLat, minLng, maxLng];
             const data = await this.entityManager.query(rawQuery, parameters);
+            const list = [];
+            const fixedAddr = data.map((d) => {
+                const { id, station_name, sido_name, data_time, pm10_value, pm10_grade, pm25_value, pm25_grade, no2_value, no2_grade, o3_value, o3_grade, so2_value, so2_grade, dm_x, dm_y, } = d;
+                const newData = {
+                    station_name,
+                    sido_name,
+                    addr: d.addr.split(' ')[1],
+                    data_time,
+                    pm10_value,
+                    pm10_grade,
+                    pm25_value,
+                    pm25_grade,
+                    no2_value,
+                    no2_grade,
+                    o3_value,
+                    o3_grade,
+                    so2_value,
+                    so2_grade,
+                    dm_x,
+                    dm_y,
+                };
+                list.push(newData);
+            });
+            console.log(list);
             this.logger.debug('get air pollution data successfully');
-            return data;
+            return list;
         }
         catch (e) {
             this.logger.error('failed to get air pollution data.', { e });
