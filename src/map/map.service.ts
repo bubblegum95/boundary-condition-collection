@@ -514,7 +514,6 @@ export class MapService {
       const list = [];
       const fixedAddr = data.map((d) => {
         const {
-          id,
           station_name,
           sido_name,
           data_time,
@@ -546,13 +545,13 @@ export class MapService {
           o3_grade,
           so2_value,
           so2_grade,
-          dm_x,
-          dm_y,
+          dm_x: Number(dm_x),
+          dm_y: Number(dm_y),
         };
-        // console.log(newData);
+        // console.log(typeof dm_x);
         list.push(newData);
       });
-      console.log(list);
+      // console.log(list);
       this.logger.debug('get air pollution data successfully');
       return list;
     } catch (e) {
