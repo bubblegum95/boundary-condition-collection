@@ -1,4 +1,10 @@
-import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  PrimaryColumn,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity({ name: 'average' })
 export class Average {
@@ -52,4 +58,7 @@ export class Average {
 
   @Column({ type: 'varchar', nullable: false, length: 30 })
   so2Grade: string;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

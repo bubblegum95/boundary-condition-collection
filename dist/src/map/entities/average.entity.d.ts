@@ -16,4 +16,5 @@ export declare class Average {
     coGrade: string;
     so2Value: string;
     so2Grade: string;
+    updatedAt: Date;
 }

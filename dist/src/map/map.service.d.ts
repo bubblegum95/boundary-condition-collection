@@ -29,7 +29,7 @@ export declare class MapService {
     fetchAverage(sidoName: string): Promise<any>;
     findCityInGuName(sidoName: any, guName: any): Promise<City[]>;
     findCityInGunName(sidoName: string, gunName: string): Promise<City[]>;
-    saveAverageInfo(item: object, cityCodes: number[], pm10Grade: string, pm25Grade: string, no2Grade: string, o3Grade: string, coGrade: string, so2Grade: string): Promise<{
+    saveNewAverageInfo(item: object, cityCodes: number[], pm10Grade: string, pm25Grade: string, no2Grade: string, o3Grade: string, coGrade: string, so2Grade: string): Promise<{
         cityCodes: number[];
         pm10Grade: string;
         pm25Grade: string;
@@ -38,6 +38,8 @@ export declare class MapService {
         coGrade: string;
         so2Grade: string;
     } & Average>;
+    findAverageData(sidoName: string, cityName: string): Promise<Average>;
+    updateAverageInfo(id: number, dataTime: string, sidoName: string, cityName: string, cityCodes: number[], pm10Value: string, pm25Value: string, no2Value: string, o3Value: string, so2Value: string, coValue: string, pm10Grade: string, pm25Grade: string, no2Grade: string, o3Grade: string, coGrade: string, so2Grade: string): Promise<import("typeorm").UpdateResult>;
     saveAverage(): Promise<void>;
     saveGrade(type: keyof GradeThresholds, value: number): Promise<string>;
     getPollutionInformation(dto: LocationInfoDto): Promise<any[]>;
