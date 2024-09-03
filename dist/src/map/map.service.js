@@ -64,17 +64,8 @@ let MapService = class MapService {
         this.entityManager = entityManager;
         this.configService = configService;
         this.logger = logger;
-        cron.schedule('*/30 * * * *', () => {
+        cron.schedule('*/1 * * * *', () => {
             this.saveAverage();
-        });
-        cron.schedule('*/10 * * * *', () => {
-            this.checkPollutionInformation();
-        });
-        cron.schedule('0 2 * * *', () => {
-            this.saveStations();
-        });
-        cron.schedule('0 1 1 * *', () => {
-            this.saveDataToFile();
         });
     }
     hasNullValues(obj) {
@@ -335,7 +326,7 @@ let MapService = class MapService {
             return;
         }
     }
-    async saveAverageInfo(item, cityCodes, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade) {
+    async saveNewAverageInfo(item, cityCodes, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade) {
         const data = await this.averageRepository.save({
             ...item,
             cityCodes,
@@ -352,6 +343,31 @@ let MapService = class MapService {
         else {
             return;
         }
+    }
+    async findAverageData(sidoName, cityName) {
+        return await this.averageRepository.findOne({
+            where: { sidoName, cityName },
+        });
+    }
+    async updateAverageInfo(id, dataTime, sidoName, cityName, cityCodes, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade) {
+        return await this.averageRepository.update(id, {
+            dataTime,
+            sidoName,
+            cityName,
+            cityCodes,
+            pm10Value,
+            pm25Value,
+            no2Value,
+            o3Value,
+            so2Value,
+            coValue,
+            pm10Grade,
+            pm25Grade,
+            no2Grade,
+            o3Grade,
+            coGrade,
+            so2Grade,
+        });
     }
     async saveAverage() {
         this.logger.debug('start to save average of city air pollution');
@@ -381,24 +397,32 @@ let MapService = class MapService {
                         const o3Grade = await this.saveGrade('o3', item.o3Value);
                         const coGrade = await this.saveGrade('co', item.coValue);
                         const so2Grade = await this.saveGrade('so2', item.so2Value);
-                        let cities = await this.findCityInGuName(sidoName, cityName);
-                        console.log(cities);
-                        if (!cities) {
-                            cities = await this.findCityInGunName(sidoName, cityName);
-                            console.log(cities);
+                        const foundData = await this.findAverageData(sidoName, cityName);
+                        console.log(foundData);
+                        if (foundData) {
+                            const updatedData = await this.updateAverageInfo(foundData.id, dataTime, sidoName, cityName, foundData.cityCodes, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade);
+                            console.log('업데이트 된 항목: ', updatedData);
                         }
-                        if (!cities) {
-                            this.logger.verbose(`해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`);
-                            continue;
+                        else {
+                            let cities = await this.findCityInGuName(sidoName, cityName);
+                            console.log('구 발견: ', cities);
+                            if (!cities) {
+                                cities = await this.findCityInGunName(sidoName, cityName);
+                                console.log('군 발견, ', cities);
+                            }
+                            if (!cities) {
+                                this.logger.verbose(`해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`);
+                                continue;
+                            }
+                            const codes = cities.map((city) => Number(city.code));
+                            this.logger.verbose(`codes: ${codes}`);
+                            const data = await this.saveNewAverageInfo(item, codes, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade);
+                            if (!data) {
+                                this.logger.error('평균값 데이터를 저장할 수 없습니다.');
+                                continue;
+                            }
+                            console.log(data);
                         }
-                        const codes = cities.map((city) => Number(city.code));
-                        this.logger.verbose(`codes: ${codes}`);
-                        const data = await this.saveAverageInfo(item, codes, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade);
-                        if (!data) {
-                            this.logger.error('평균값 데이터를 저장할 수 없습니다.');
-                            continue;
-                        }
-                        console.log(data);
                     }
                 }, i * 5000);
             }

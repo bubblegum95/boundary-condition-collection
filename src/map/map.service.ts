@@ -33,18 +33,18 @@ export class MapService {
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
-    cron.schedule('*/30 * * * *', () => {
+    cron.schedule('*/1 * * * *', () => {
       this.saveAverage();
     });
-    cron.schedule('*/10 * * * *', () => {
-      this.checkPollutionInformation();
-    });
-    cron.schedule('0 2 * * *', () => {
-      this.saveStations();
-    });
-    cron.schedule('0 1 1 * *', () => {
-      this.saveDataToFile();
-    });
+    //   cron.schedule('*/10 * * * *', () => {
+    //     this.checkPollutionInformation();
+    //   });
+    //   cron.schedule('0 2 * * *', () => {
+    //     this.saveStations();
+    //   });
+    //   cron.schedule('0 1 1 * *', () => {
+    //     this.saveDataToFile();
+    //   });
   }
 
   hasNullValues(obj: Record<string, any>): boolean {
@@ -362,7 +362,7 @@ export class MapService {
     }
   }
 
-  async saveAverageInfo(
+  async saveNewAverageInfo(
     item: object,
     cityCodes: number[],
     pm10Grade: string,
@@ -388,6 +388,51 @@ export class MapService {
     } else {
       return;
     }
+  }
+
+  async findAverageData(sidoName: string, cityName: string) {
+    return await this.averageRepository.findOne({
+      where: { sidoName, cityName },
+    });
+  }
+
+  async updateAverageInfo(
+    id: number,
+    dataTime: string,
+    sidoName: string,
+    cityName: string,
+    cityCodes: number[],
+    pm10Value: string,
+    pm25Value: string,
+    no2Value: string,
+    o3Value: string,
+    so2Value: string,
+    coValue: string,
+    pm10Grade: string,
+    pm25Grade: string,
+    no2Grade: string,
+    o3Grade: string,
+    coGrade: string,
+    so2Grade: string
+  ) {
+    return await this.averageRepository.update(id, {
+      dataTime,
+      sidoName,
+      cityName,
+      cityCodes,
+      pm10Value,
+      pm25Value,
+      no2Value,
+      o3Value,
+      so2Value,
+      coValue,
+      pm10Grade,
+      pm25Grade,
+      no2Grade,
+      o3Grade,
+      coGrade,
+      so2Grade,
+    });
   }
 
   async saveAverage() {
@@ -430,40 +475,67 @@ export class MapService {
             const o3Grade = await this.saveGrade('o3', item.o3Value);
             const coGrade = await this.saveGrade('co', item.coValue);
             const so2Grade = await this.saveGrade('so2', item.so2Value);
+            const foundData = await this.findAverageData(sidoName, cityName);
 
-            let cities = await this.findCityInGuName(sidoName, cityName);
-            console.log(cities);
-
-            if (!cities) {
-              cities = await this.findCityInGunName(sidoName, cityName);
-              console.log(cities);
-            }
-            if (!cities) {
-              this.logger.verbose(
-                `해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`
+            console.log(foundData);
+            if (foundData) {
+              const updatedData = await this.updateAverageInfo(
+                foundData.id,
+                dataTime,
+                sidoName,
+                cityName,
+                foundData.cityCodes,
+                pm10Value,
+                pm25Value,
+                no2Value,
+                o3Value,
+                so2Value,
+                coValue,
+                pm10Grade,
+                pm25Grade,
+                no2Grade,
+                o3Grade,
+                coGrade,
+                so2Grade
               );
-              continue;
+              console.log('업데이트 된 항목: ', updatedData);
+            } else {
+              let cities = await this.findCityInGuName(sidoName, cityName);
+              console.log('구 발견: ', cities);
+
+              if (!cities) {
+                cities = await this.findCityInGunName(sidoName, cityName);
+                console.log('군 발견, ', cities);
+              }
+
+              if (!cities) {
+                this.logger.verbose(
+                  `해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`
+                );
+                continue;
+              }
+
+              const codes = cities.map((city) => Number(city.code));
+              this.logger.verbose(`codes: ${codes}`);
+
+              const data = await this.saveNewAverageInfo(
+                item,
+                codes,
+                pm10Grade,
+                pm25Grade,
+                no2Grade,
+                o3Grade,
+                coGrade,
+                so2Grade
+              );
+
+              if (!data) {
+                this.logger.error('평균값 데이터를 저장할 수 없습니다.');
+                continue;
+              }
+
+              console.log(data);
             }
-            const codes = cities.map((city) => Number(city.code));
-            this.logger.verbose(`codes: ${codes}`);
-
-            const data = await this.saveAverageInfo(
-              item,
-              codes,
-              pm10Grade,
-              pm25Grade,
-              no2Grade,
-              o3Grade,
-              coGrade,
-              so2Grade
-            );
-
-            if (!data) {
-              this.logger.error('평균값 데이터를 저장할 수 없습니다.');
-              continue;
-            }
-
-            console.log(data);
           }
         }, i * 5000); // 5초 간격으로 실행
       }

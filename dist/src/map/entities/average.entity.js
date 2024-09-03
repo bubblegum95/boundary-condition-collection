@@ -82,6 +82,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', nullable: false, length: 30 }),
     __metadata("design:type", String)
 ], Average.prototype, "so2Grade", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)(),
+    __metadata("design:type", Date)
+], Average.prototype, "updatedAt", void 0);
 exports.Average = Average = __decorate([
     (0, typeorm_1.Entity)({ name: 'average' })
 ], Average);
