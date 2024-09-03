@@ -33,7 +33,7 @@ export class MapService {
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
-    cron.schedule('*/1 * * * *', () => {
+    cron.schedule('*/30 * * * *', () => {
       this.saveAverage();
     });
     cron.schedule('*/10 * * * *', () => {
