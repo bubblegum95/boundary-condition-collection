@@ -36,15 +36,15 @@ export class MapService {
     cron.schedule('*/1 * * * *', () => {
       this.saveAverage();
     });
-    //   cron.schedule('*/10 * * * *', () => {
-    //     this.checkPollutionInformation();
-    //   });
-    //   cron.schedule('0 2 * * *', () => {
-    //     this.saveStations();
-    //   });
-    //   cron.schedule('0 1 1 * *', () => {
-    //     this.saveDataToFile();
-    //   });
+    cron.schedule('*/10 * * * *', () => {
+      this.checkPollutionInformation();
+    });
+    cron.schedule('0 2 * * *', () => {
+      this.saveStations();
+    });
+    cron.schedule('0 1 1 * *', () => {
+      this.saveDataToFile();
+    });
   }
 
   hasNullValues(obj: Record<string, any>): boolean {
