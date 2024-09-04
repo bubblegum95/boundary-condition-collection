@@ -645,12 +645,14 @@ export class MapService {
             cityName: cityAverage.cityName,
             sidoName: cityAverage.sidoName,
             dataTime: cityAverage.dataTime,
-            pm10Grade: cityAverage.pm10Grade,
-            pm25Grade: cityAverage.pm25Grade,
-            no2Grade: cityAverage.no2Grade,
-            o3Grade: cityAverage.o3Grade,
-            coGrade: cityAverage.coGrade,
-            so2Grade: cityAverage.so2Grade,
+            pollutantsAverage: {
+              PM10: cityAverage.pm10Grade,
+              PM25: cityAverage.pm25Grade,
+              NO2: cityAverage.no2Grade,
+              O3: cityAverage.o3Grade,
+              CO: cityAverage.coGrade,
+              SO2: cityAverage.so2Grade,
+            },
           });
         }
       }
