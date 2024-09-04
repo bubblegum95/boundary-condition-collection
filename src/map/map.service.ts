@@ -606,26 +606,43 @@ export class MapService {
           o3_grade,
           so2_value,
           so2_grade,
+          co_value,
+          co_grade,
           dm_x,
           dm_y,
         } = d;
         const newData = {
-          station_name,
-          sido_name,
-          addr: d.addr.split(' ')[1],
-          data_time,
-          pm10_value,
-          pm10_grade,
-          pm25_value,
-          pm25_grade,
-          no2_value,
-          no2_grade,
-          o3_value,
-          o3_grade,
-          so2_value,
-          so2_grade,
-          dm_x: Number(dm_x),
-          dm_y: Number(dm_y),
+          location: [Number(dm_x), Number(dm_y)],
+          station: station_name,
+          addressTitle: sido_name,
+          addressSub: d.addr.split(' ')[1],
+          date: data_time,
+          airData: {
+            PM10: {
+              data: pm10_value,
+              grade: pm10_grade,
+            },
+            PM25: {
+              data: pm25_value,
+              grade: pm25_grade,
+            },
+            NO2: {
+              data: no2_value,
+              grade: no2_grade,
+            },
+            O3: {
+              data: o3_value,
+              grade: o3_grade,
+            },
+            SO2: {
+              data: so2_value,
+              grade: so2_grade,
+            },
+            CO: {
+              data: co_value,
+              grade: co_grade,
+            },
+          },
         };
         // console.log(typeof dm_x);
         list.push(newData);
