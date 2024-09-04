@@ -442,7 +442,7 @@ export class MapService {
         setTimeout(async () => {
           const data = await this.fetchAverage(sidoName[i]);
           for (const item of data.response.body.items) {
-            const {
+            let {
               dataTime,
               sidoName,
               cityName,
@@ -468,6 +468,13 @@ export class MapService {
             const hasNull = this.hasNullValues(checkList);
 
             if (hasNull) continue;
+
+            pm10Value = await this.fixData(pm10Value);
+            pm25Value = await this.fixData(pm25Value);
+            no2Value = await this.fixData(no2Value);
+            o3Value = await this.fixData(o3Value);
+            coValue = await this.fixData(coValue);
+            so2Value = await this.fixData(so2Value);
 
             const pm10Grade = await this.saveGrade('pm10', item.pm10Value);
             const pm25Grade = await this.saveGrade('pm25', item.pm25Value);
