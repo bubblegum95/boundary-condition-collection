@@ -435,6 +435,29 @@ export class MapService {
     });
   }
 
+  async findCityCode(sidoName: string, cityName: string): Promise<number[]> {
+    let cities = await this.findCityInGuName(sidoName, cityName);
+    console.log('구 발견: ', cities);
+
+    if (!cities || cities.length === 0) {
+      cities = await this.findCityInGunName(sidoName, cityName);
+      console.log('군 발견, ', cities);
+    }
+
+    if (!cities || cities.length === 0) {
+      this.logger.verbose(
+        `해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`
+      );
+
+      return [];
+    }
+
+    const codes = cities.map((city) => Number(city.code));
+    this.logger.verbose(`codes: ${codes}`);
+
+    return codes;
+  }
+
   async saveAverage() {
     this.logger.debug('start to save average of city air pollution');
     try {
@@ -485,13 +508,15 @@ export class MapService {
             const foundData = await this.findAverageData(sidoName, cityName);
 
             console.log(foundData);
+            const codes = await this.findCityCode(sidoName, cityName);
+
             if (foundData) {
               const updatedData = await this.updateAverageInfo(
                 foundData.id,
                 dataTime,
                 sidoName,
                 cityName,
-                foundData.cityCodes,
+                codes,
                 pm10Value,
                 pm25Value,
                 no2Value,
@@ -507,24 +532,6 @@ export class MapService {
               );
               console.log('업데이트 된 항목: ', updatedData);
             } else {
-              let cities = await this.findCityInGuName(sidoName, cityName);
-              console.log('구 발견: ', cities);
-
-              if (!cities) {
-                cities = await this.findCityInGunName(sidoName, cityName);
-                console.log('군 발견, ', cities);
-              }
-
-              if (!cities) {
-                this.logger.verbose(
-                  `해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`
-                );
-                continue;
-              }
-
-              const codes = cities.map((city) => Number(city.code));
-              this.logger.verbose(`codes: ${codes}`);
-
               const data = await this.saveNewAverageInfo(
                 item,
                 codes,

@@ -64,8 +64,17 @@ let MapService = class MapService {
         this.entityManager = entityManager;
         this.configService = configService;
         this.logger = logger;
-        cron.schedule('*/1 * * * *', () => {
+        cron.schedule('*/30 * * * *', () => {
             this.saveAverage();
+        });
+        cron.schedule('*/10 * * * *', () => {
+            this.checkPollutionInformation();
+        });
+        cron.schedule('0 2 * * *', () => {
+            this.saveStations();
+        });
+        cron.schedule('0 1 1 * *', () => {
+            this.saveDataToFile();
         });
     }
     hasNullValues(obj) {
@@ -369,6 +378,21 @@ let MapService = class MapService {
             so2Grade,
         });
     }
+    async findCityCode(sidoName, cityName) {
+        let cities = await this.findCityInGuName(sidoName, cityName);
+        console.log('구 발견: ', cities);
+        if (!cities || cities.length === 0) {
+            cities = await this.findCityInGunName(sidoName, cityName);
+            console.log('군 발견, ', cities);
+        }
+        if (!cities || cities.length === 0) {
+            this.logger.verbose(`해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`);
+            return [];
+        }
+        const codes = cities.map((city) => Number(city.code));
+        this.logger.verbose(`codes: ${codes}`);
+        return codes;
+    }
     async saveAverage() {
         this.logger.debug('start to save average of city air pollution');
         try {
@@ -376,7 +400,7 @@ let MapService = class MapService {
                 setTimeout(async () => {
                     const data = await this.fetchAverage(sido_name_type_1.sidoName[i]);
                     for (const item of data.response.body.items) {
-                        const { dataTime, sidoName, cityName, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, } = item;
+                        let { dataTime, sidoName, cityName, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, } = item;
                         const checkList = {
                             dataTime,
                             sidoName,
@@ -391,6 +415,12 @@ let MapService = class MapService {
                         const hasNull = this.hasNullValues(checkList);
                         if (hasNull)
                             continue;
+                        pm10Value = await this.fixData(pm10Value);
+                        pm25Value = await this.fixData(pm25Value);
+                        no2Value = await this.fixData(no2Value);
+                        o3Value = await this.fixData(o3Value);
+                        coValue = await this.fixData(coValue);
+                        so2Value = await this.fixData(so2Value);
                         const pm10Grade = await this.saveGrade('pm10', item.pm10Value);
                         const pm25Grade = await this.saveGrade('pm25', item.pm25Value);
                         const no2Grade = await this.saveGrade('no2', item.no2Value);
@@ -399,23 +429,12 @@ let MapService = class MapService {
                         const so2Grade = await this.saveGrade('so2', item.so2Value);
                         const foundData = await this.findAverageData(sidoName, cityName);
                         console.log(foundData);
+                        const codes = await this.findCityCode(sidoName, cityName);
                         if (foundData) {
-                            const updatedData = await this.updateAverageInfo(foundData.id, dataTime, sidoName, cityName, foundData.cityCodes, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade);
+                            const updatedData = await this.updateAverageInfo(foundData.id, dataTime, sidoName, cityName, codes, pm10Value, pm25Value, no2Value, o3Value, so2Value, coValue, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade);
                             console.log('업데이트 된 항목: ', updatedData);
                         }
                         else {
-                            let cities = await this.findCityInGuName(sidoName, cityName);
-                            console.log('구 발견: ', cities);
-                            if (!cities) {
-                                cities = await this.findCityInGunName(sidoName, cityName);
-                                console.log('군 발견, ', cities);
-                            }
-                            if (!cities) {
-                                this.logger.verbose(`해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`);
-                                continue;
-                            }
-                            const codes = cities.map((city) => Number(city.code));
-                            this.logger.verbose(`codes: ${codes}`);
                             const data = await this.saveNewAverageInfo(item, codes, pm10Grade, pm25Grade, no2Grade, o3Grade, coGrade, so2Grade);
                             if (!data) {
                                 this.logger.error('평균값 데이터를 저장할 수 없습니다.');
@@ -468,24 +487,39 @@ let MapService = class MapService {
             const data = await this.entityManager.query(rawQuery, parameters);
             const list = [];
             const fixedAddr = data.map((d) => {
-                const { station_name, sido_name, data_time, pm10_value, pm10_grade, pm25_value, pm25_grade, no2_value, no2_grade, o3_value, o3_grade, so2_value, so2_grade, dm_x, dm_y, } = d;
+                const { station_name, sido_name, data_time, pm10_value, pm10_grade, pm25_value, pm25_grade, no2_value, no2_grade, o3_value, o3_grade, so2_value, so2_grade, co_value, co_grade, dm_x, dm_y, } = d;
                 const newData = {
-                    station_name,
-                    sido_name,
-                    addr: d.addr.split(' ')[1],
-                    data_time,
-                    pm10_value,
-                    pm10_grade,
-                    pm25_value,
-                    pm25_grade,
-                    no2_value,
-                    no2_grade,
-                    o3_value,
-                    o3_grade,
-                    so2_value,
-                    so2_grade,
-                    dm_x: Number(dm_x),
-                    dm_y: Number(dm_y),
+                    location: [Number(dm_x), Number(dm_y)],
+                    station: station_name,
+                    addressTitle: sido_name,
+                    addressSub: d.addr.split(' ')[1],
+                    date: data_time,
+                    airData: {
+                        PM10: {
+                            data: pm10_value,
+                            grade: pm10_grade,
+                        },
+                        PM25: {
+                            data: pm25_value,
+                            grade: pm25_grade,
+                        },
+                        NO2: {
+                            data: no2_value,
+                            grade: no2_grade,
+                        },
+                        O3: {
+                            data: o3_value,
+                            grade: o3_grade,
+                        },
+                        SO2: {
+                            data: so2_value,
+                            grade: so2_grade,
+                        },
+                        CO: {
+                            data: co_value,
+                            grade: co_grade,
+                        },
+                    },
                 };
                 list.push(newData);
             });
@@ -509,12 +543,14 @@ let MapService = class MapService {
                         cityName: cityAverage.cityName,
                         sidoName: cityAverage.sidoName,
                         dataTime: cityAverage.dataTime,
-                        pm10Grade: cityAverage.pm10Grade,
-                        pm25Grade: cityAverage.pm25Grade,
-                        no2Grade: cityAverage.no2Grade,
-                        o3Grade: cityAverage.o3Grade,
-                        coGrade: cityAverage.coGrade,
-                        so2Grade: cityAverage.so2Grade,
+                        pollutantsAverage: {
+                            PM10: cityAverage.pm10Grade,
+                            PM25: cityAverage.pm25Grade,
+                            NO2: cityAverage.no2Grade,
+                            O3: cityAverage.o3Grade,
+                            CO: cityAverage.coGrade,
+                            SO2: cityAverage.so2Grade,
+                        },
                     });
                 }
             }
