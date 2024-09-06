@@ -8,3 +8,4 @@ loki
 prometheus
 grafana
 data
+dist
