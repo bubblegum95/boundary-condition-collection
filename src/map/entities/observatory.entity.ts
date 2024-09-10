@@ -12,13 +12,20 @@ export class Observatory {
   @Column({ type: 'int', nullable: false })
   num: number;
 
-  @Column({ type: 'varchar', nullable: false, length: 10 })
-  code: string;
-
-  @Column({ type: 'fixed', nullable: false })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 7,
+    nullable: false,
+  })
   lat: number;
 
-  @Column({ type: 'fixed', nullable: false })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 7,
+    nullable: false,
+  })
   lng: number;
 
   @OneToOne(() => Weather, (weather) => weather.observatory)

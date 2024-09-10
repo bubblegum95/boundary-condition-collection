@@ -9,9 +9,20 @@ import { City } from './entities/city.entity';
 import { Average } from './entities/average.entity';
 import { AirPollutionService } from './airPollution.service';
 import { WeatherService } from './weather.service';
+import Weather from './entities/weather.entity';
+import { Observatory } from './entities/observatory.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Pollutions, Stations, City, Average])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Pollutions,
+      Stations,
+      City,
+      Average,
+      Weather,
+      Observatory,
+    ]),
+  ],
   providers: [MapGateway, MapService, AirPollutionService, WeatherService],
   controllers: [MapController],
 })

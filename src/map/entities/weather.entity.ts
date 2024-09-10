@@ -13,12 +13,12 @@ export default class Weather {
   id: number;
 
   @Column({ type: 'int', nullable: false })
-  observatory_id: number;
+  observatoryId: number;
 
-  @Column({ type: 'fixed', nullable: false })
+  @Column({ type: 'decimal', nullable: false })
   tamperature: number; // TA: 온도
 
-  @Column({ type: 'fixed', nullable: false })
+  @Column({ type: 'decimal', nullable: false })
   humidity: number; // HM: 상대습도
 
   @Column({ type: 'varchar', nullable: false, length: 20 })

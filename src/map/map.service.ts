@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import { LocationInfoDto } from './dto/locationInfo.dto';
 import { Average } from './entities/average.entity';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
@@ -14,7 +13,6 @@ export class MapService {
     private readonly averageRepository: Repository<Average>,
     @InjectEntityManager()
     private readonly entityManager: EntityManager,
-    private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {}
   async getPollutionInformation(dto: LocationInfoDto) {
