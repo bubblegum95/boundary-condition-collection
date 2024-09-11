@@ -9,7 +9,7 @@ export class Observatory {
   @Column({ type: 'varchar', nullable: false, length: 10 })
   name: string;
 
-  @Column({ type: 'int', nullable: false })
+  @Column({ type: 'int', nullable: false, unique: true })
   num: number;
 
   @Column({

@@ -12,7 +12,7 @@ export default class Weather {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'int', nullable: false })
+  @Column({ type: 'int', nullable: false, unique: true })
   observatoryId: number;
 
   @Column({ type: 'decimal', nullable: false })
