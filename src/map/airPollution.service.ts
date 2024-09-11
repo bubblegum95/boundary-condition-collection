@@ -32,18 +32,18 @@ export class AirPollutionService {
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
-    cron.schedule('*/30 * * * *', () => {
-      this.saveAverage();
-    });
-    cron.schedule('*/10 * * * *', () => {
-      this.checkPollutionInformation();
-    });
-    cron.schedule('0 2 * * *', () => {
-      this.saveStations();
-    });
-    cron.schedule('0 1 1 * *', () => {
-      this.saveDataToFile();
-    });
+    // cron.schedule('*/30 * * * *', () => {
+    //   this.saveAverage();
+    // });
+    // cron.schedule('*/10 * * * *', () => {
+    //   this.checkPollutionInformation();
+    // });
+    // cron.schedule('0 2 * * *', () => {
+    //   this.saveStations();
+    // });
+    // cron.schedule('0 1 1 * *', () => {
+    //   this.saveDataToFile();
+    // });
   }
 
   hasNullValues(obj: Record<string, any>): boolean {

@@ -5,43 +5,243 @@ import { LocationInfoDto } from './dto/locationInfo.dto';
 import { Average } from './entities/average.entity';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import Weather from './entities/weather.entity';
+import { Observatory } from './entities/observatory.entity';
+import ProximateObservatoryToFindDto from './dto/proximateobservatory-to-find.dto';
+import ProximateObservDto from './dto/proximateobserv.dto';
 
 @Injectable()
 export class MapService {
   constructor(
     @InjectRepository(Average)
     private readonly averageRepository: Repository<Average>,
+    @InjectRepository(Weather)
+    private readonly weatherRepository: Repository<Weather>,
+    @InjectRepository(Observatory)
+    private readonly observatoryRepository: Repository<Observatory>,
     @InjectEntityManager()
     private readonly entityManager: EntityManager,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {}
+
+  async fixTypeToNumber(data: number) {
+    try {
+      const fixedData = Number(data.toFixed(8));
+      return fixedData;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async kmToLatRadian(distance: number): Promise<number> {
+    try {
+      const earthRadius = 6371;
+      const radian = this.fixTypeToNumber(
+        (distance / earthRadius) * (180 / Math.PI)
+      );
+      return radian;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async kmToLngRadian(lat: number, distance: number): Promise<number> {
+    try {
+      const earthRadius = 6371;
+      const latRad = lat * (Math.PI / 180); // 위도를 라디안으로 변환
+      const kmPerDegree =
+        earthRadius * Math.cos(latRad) * ((2 * Math.PI) / 360);
+      const radian = this.fixTypeToNumber(distance / kmPerDegree);
+      return radian;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async calculateLatRange(lat: number, distance: number) {
+    try {
+      const latRad = await this.kmToLatRadian(distance);
+      const minLat = await this.fixTypeToNumber(lat - latRad);
+      const maxLat = await this.fixTypeToNumber(Number(lat) + Number(latRad));
+      return { minLat, maxLat };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async calculateLngRange(lat: number, lng: number, distance: number) {
+    try {
+      const lngRad = await this.kmToLngRadian(lat, distance);
+      const minLng = await this.fixTypeToNumber(lng - lngRad);
+      const maxLng = await this.fixTypeToNumber(Number(lng) + Number(lngRad));
+      return { minLng, maxLng };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getRangeOfLocation(lat: number, lng: number, distance: number) {
+    try {
+      let { minLat, maxLat } = await this.calculateLatRange(lat, distance);
+      let { minLng, maxLng } = await this.calculateLngRange(lat, lng, distance);
+
+      console.log(`위도 범위: ${minLat} ~ ${maxLat}`);
+      console.log(`경도 범위: ${minLng} ~ ${maxLng}`);
+
+      return { minLat, maxLat, minLng, maxLng };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findNearbyObservatoryWeather(
+    minLat: number,
+    maxLat: number,
+    minLng: number,
+    maxLng: number
+  ): Promise<Observatory[]> {
+    try {
+      const data = await this.observatoryRepository
+        .createQueryBuilder('observatory')
+        .leftJoinAndSelect('observatory.weather', 'weather')
+        .where('observatory.lat BETWEEN :minLat AND :maxLat', {
+          minLat,
+          maxLat,
+        })
+        .andWhere('observatory.lng BETWEEN :minLng AND :maxLng', {
+          minLng,
+          maxLng,
+        })
+        .getMany();
+
+      console.log(data);
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // 위치정보로 거리 계산하기
+  async haversineGreatCircleDistance(
+    latitudeFrom: number,
+    longitudeFrom: number,
+    latitudeTo: number,
+    longitudeTo: number
+  ) {
+    try {
+      const latFrom = latitudeFrom * (Math.PI / 180);
+      const lonFrom = longitudeFrom * (Math.PI / 180);
+      const latTo = latitudeTo * (Math.PI / 180);
+      const lonTo = longitudeTo * (Math.PI / 180);
+      const latDelta = latTo - latFrom;
+      const lonDelta = lonTo - lonFrom;
+
+      const angle =
+        2 *
+        Math.asin(
+          Math.sqrt(
+            Math.pow(Math.sin(latDelta / 2), 2) +
+              Math.cos(latFrom) *
+                Math.cos(latTo) *
+                Math.pow(Math.sin(lonDelta / 2), 2)
+          )
+        );
+      const earthRadius = 6371;
+
+      return angle * earthRadius;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findProximateObservatory(dto: ProximateObservatoryToFindDto) {
+    try {
+      const { lat, lng, observatories } = dto;
+      let list: ProximateObservDto[] | null = [];
+
+      for (const observatory of observatories) {
+        const latTo = observatory.lat;
+        const lngTo = observatory.lng;
+        const latFrom = lat;
+        const lngFrom = lng;
+        const gap = await this.haversineGreatCircleDistance(
+          latFrom,
+          lngFrom,
+          latTo,
+          lngTo
+        );
+        const data = {
+          observatory,
+          gap,
+        };
+        list.push(data);
+      }
+      list.sort((a, b) => a.gap - b.gap);
+      return list[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findOneObservatoryWeather(lat: number, lng: number) {
+    try {
+      const distance = 30; // km
+      const { minLat, maxLat, minLng, maxLng } = await this.getRangeOfLocation(
+        lat,
+        lng,
+        distance
+      );
+      const observatories = await this.findNearbyObservatoryWeather(
+        minLat,
+        maxLat,
+        minLng,
+        maxLng
+      );
+      const data = await this.findProximateObservatory({
+        lat,
+        lng,
+        observatories,
+      });
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async findStationsPollution(dto: LocationInfoDto) {
+    const { minLat, maxLat, minLng, maxLng } = dto;
+    const rawQuery = `
+      SELECT 
+        p.*, 
+        s.id as station_id,
+        s.station_name,
+        s.addr,
+        s.dm_x,
+        s.dm_y
+      FROM 
+        pollutions p 
+      INNER JOIN 
+        stations s 
+      ON 
+        p.station_id = s.id 
+      WHERE 
+        s.dm_x BETWEEN $1 AND $2 
+        AND s.dm_y BETWEEN $3 AND $4
+    `;
+    const parameters = [minLat, maxLat, minLng, maxLng];
+
+    return await this.entityManager.query(rawQuery, parameters);
+  }
+
   async getPollutionInformation(dto: LocationInfoDto) {
     this.logger.debug('start to get air pollution data');
-    const { minLat, maxLat, minLng, maxLng } = dto;
+    const data = await this.findStationsPollution(dto);
 
     try {
-      const rawQuery = `
-        SELECT 
-          p.*, 
-          s.id as station_id,
-          s.station_name,
-          s.addr,
-          s.dm_x,
-          s.dm_y
-        FROM 
-          pollutions p 
-        INNER JOIN 
-          stations s 
-        ON 
-          p.station_id = s.id 
-        WHERE 
-          s.dm_x BETWEEN $1 AND $2 
-          AND s.dm_y BETWEEN $3 AND $4
-      `;
-      const parameters = [minLat, maxLat, minLng, maxLng];
-      const data = await this.entityManager.query(rawQuery, parameters);
       const list = [];
-      const fixedAddr = data.map((d) => {
+
+      for (const item of data) {
         const {
           station_name,
           sido_name,
@@ -60,12 +260,17 @@ export class MapService {
           co_grade,
           dm_x,
           dm_y,
-        } = d;
+        } = item;
+
+        const lat = dm_x;
+        const lng = dm_y;
+        const { observatory } = await this.findOneObservatoryWeather(lat, lng); // 위도 경도에 따른 온습도 정보 가져와서 매핑해주기
+
         const newData = {
           location: [Number(dm_x), Number(dm_y)],
           station: station_name,
           addressTitle: sido_name,
-          addressSub: d.addr.split(' ')[1],
+          addressSub: item.addr.split(' ')[1],
           date: data_time,
           airData: {
             PM10: {
@@ -92,17 +297,20 @@ export class MapService {
               data: co_value,
               grade: co_grade,
             },
+            TP: observatory.weather.tamperature,
+            HM: observatory.weather.humidity,
           },
         };
         // console.log(typeof dm_x);
         list.push(newData);
-      });
+      }
+
       // console.log(list);
       this.logger.debug('get air pollution data successfully');
       return list;
-    } catch (e) {
-      this.logger.error('failed to get air pollution data.', { e });
-      throw e;
+    } catch (error) {
+      this.logger.error('failed to get air pollution data.', error);
+      throw error;
     }
   }
 
@@ -137,53 +345,5 @@ export class MapService {
       this.logger.error('failed to get average of city air pollution data');
       throw e;
     }
-  }
-
-  // Haversine Distance 계산 함수
-  async haversineDistance(
-    maxLat: number,
-    maxLng: number,
-    minLat: number,
-    minLng: number
-  ) {
-    const R = 6371.0; // 지구 반지름 (킬로미터 단위로 사용)
-
-    // 위도와 경도를 라디안으로 변환하는 함수
-    const toRadians = (degree) => (degree * Math.PI) / 180; // 도(degree) 값을 라디안(radian) 값으로 변환
-
-    // 두 지점의 위도를 라디안으로 변환
-    const φ1 = toRadians(maxLat); // 첫 번째 지점의 위도
-    const φ2 = toRadians(minLat); // 두 번째 지점의 위도
-
-    // 두 지점의 위도 차이를 계산하여 라디안으로 변환
-    const Δφ = toRadians(maxLat - minLat); // 위도의 차이
-
-    // 두 지점의 경도 차이를 계산하여 라디안으로 변환
-    const Δλ = toRadians(maxLng - minLng); // 경도의 차이
-
-    // Haversine 공식 적용
-    const a =
-      Math.sin(Δφ / 2) ** 2 +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    // 거리 계산
-    const distance = R * c;
-
-    return distance; // 두 지점 사이의 거리 반환 (킬로미터 단위)
-  }
-
-  // 특정 지점이 범위 내에 있는지 확인하는 함수
-  async isWithinRange(centerLat, centerLon, targetLat, targetLon, radius) {
-    // 중심 좌표와 대상 좌표 사이의 거리 계산
-    const distance = await this.haversineDistance(
-      centerLat,
-      centerLon,
-      targetLat,
-      targetLon
-    );
-
-    // 거리와 반경을 비교하여 범위 내에 있는지 판단
-    return distance <= radius;
   }
 }

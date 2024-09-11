@@ -20,12 +20,12 @@ export class WeatherService {
     @InjectRepository(Observatory)
     private readonly observatoryRepository: Repository<Observatory>
   ) {
-    cron.schedule('0 3 * * *', () => {
-      this.fetchObservatory();
-    });
-    cron.schedule('0/10 * * * *', () => {
-      this.fetchWeather();
-    });
+    // cron.schedule('0 3 * * *', () => {
+    //   this.fetchObservatory();
+    // });
+    // cron.schedule('0/10 * * * *', () => {
+    //   this.fetchWeather();
+    // });
   }
 
   async saveObservatory(dto: ObservatoryToCreateDto) {
