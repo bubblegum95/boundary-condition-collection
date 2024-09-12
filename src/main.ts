@@ -22,9 +22,10 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: '*',
+    origin: ['https://boundary-gg.vercel.app', 'localhost:3000'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
+    allowedHeaders: 'Content-Type, Authorization',
   });
 
   // websocket adapter 설정
