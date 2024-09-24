@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as iconv from 'iconv-lite';
@@ -10,6 +10,8 @@ import WeatherToCreateDto from './dto/weather-to-create.dto';
 import WeatherToUpdateDto from './dto/weather-to-update.dto';
 import ObservatoryToUpdateDto from './dto/observatory-to-update.dto';
 import * as cron from 'node-cron';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 
 @Injectable()
 export class WeatherService {
@@ -18,17 +20,21 @@ export class WeatherService {
     @InjectRepository(Weather)
     private readonly weatherRepository: Repository<Weather>,
     @InjectRepository(Observatory)
-    private readonly observatoryRepository: Repository<Observatory>
+    private readonly observatoryRepository: Repository<Observatory>,
+    @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
     cron.schedule('0 3 * * *', () => {
+      this.logger.debug('start to fetch and update observatories');
       this.fetchObservatory();
     });
     cron.schedule('0/10 * * * *', () => {
+      this.logger.debug('start to fetch and update weather information');
       this.fetchWeather();
     });
   }
 
   async saveObservatory(dto: ObservatoryToCreateDto) {
+    this.logger.debug('start save observatories');
     const { num, name, lat, lng } = dto;
     const data = await this.observatoryRepository.save({
       num,
@@ -36,6 +42,7 @@ export class WeatherService {
       lat,
       lng,
     });
+    this.logger.debug('finish save observatories');
   }
 
   async updateObservatory(dto: ObservatoryToUpdateDto) {
@@ -59,7 +66,11 @@ export class WeatherService {
   }
 
   async saveWeather(dto: WeatherToCreateDto) {
+    this.logger.debug('start to save weather information');
     const { observatoryId, tamperature, humidity, measuredAt } = dto;
+    this.logger.debug(
+      `observatory id: ${observatoryId}, tamperature: ${tamperature}, humidity: ${humidity}, measured at: ${measuredAt}`
+    );
     const data = await this.weatherRepository.save({
       observatoryId,
       tamperature,
@@ -69,7 +80,11 @@ export class WeatherService {
   }
 
   async updateWeather(dto: WeatherToUpdateDto) {
+    this.logger.debug('start to update weather information');
     const { observatoryId, tamperature, humidity, measuredAt } = dto;
+    this.logger.debug(
+      `observatory id: ${observatoryId}, tamperature: ${tamperature}, humidity: ${humidity}, measured at: ${measuredAt}`
+    );
     const data = await this.weatherRepository.update(observatoryId, {
       tamperature,
       humidity,
@@ -112,7 +127,7 @@ export class WeatherService {
             await this.updateWeather(item);
           }
         } else {
-          console.log('등록된 관측소가 없습니다.');
+          this.logger.debug('등록된 관측소가 없습니다.');
           continue;
         }
       }

@@ -33,9 +33,11 @@ export class AirPollutionService {
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
     cron.schedule('*/30 * * * *', () => {
+      this.logger.debug('start to save average information');
       this.saveAverage();
     });
     cron.schedule('*/10 * * * *', () => {
+      this.logger.debug('start to fetch air pollution data');
       this.checkPollutionInformation();
     });
     cron.schedule('0 2 * * *', () => {
@@ -62,8 +64,6 @@ export class AirPollutionService {
   }
 
   async fetchPollutionData() {
-    this.logger.debug('start to fetch air pollution data');
-
     const serviceKey = this.configService.get('SERVICE_KEY');
     const returnType = 'json';
     const numOfRows = 661;
@@ -188,7 +188,6 @@ export class AirPollutionService {
   }
 
   async checkPollutionInformation() {
-    this.logger.debug('start to fetch air pollution data');
     try {
       const data = await this.fetchPollutionData();
       for (const item of data.response.body.items) {
