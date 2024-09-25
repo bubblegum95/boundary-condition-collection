@@ -194,7 +194,7 @@ export class AirPollutionService {
       return;
     } catch (e) {
       this.logger.error('failed to save pollution data');
-      this.logger.verbose(e);
+      this.logger.error(e.message);
       throw e;
     }
   }
@@ -204,7 +204,7 @@ export class AirPollutionService {
     try {
       const data = await this.fetchPollutionData();
       for (const item of data.response.body.items) {
-        this.logger.verbose(item);
+        this.logger.info(item);
         let {
           dataTime,
           sidoName,
@@ -265,7 +265,7 @@ export class AirPollutionService {
       }
     } catch (e) {
       this.logger.error(`Faild to fetch pollution data`);
-      this.logger.verbose(e);
+      this.logger.error(e.message);
     }
   }
 
@@ -312,11 +312,7 @@ export class AirPollutionService {
     this.logger.debug('start to save station informations');
     try {
       const data = await this.fetchStationData();
-      this.logger.debug(data);
-
       for (const item of data.response.body.items) {
-        this.logger.verbose('station: ', item);
-
         const foundStation = await this.findStation(item.stationName);
 
         if (!foundStation) {
@@ -487,7 +483,7 @@ export class AirPollutionService {
       }
 
       if (!cities || cities.length === 0) {
-        this.logger.verbose(
+        this.logger.info(
           `해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`
         );
 
@@ -495,7 +491,6 @@ export class AirPollutionService {
       }
 
       const codes = cities.map((city) => Number(city.code));
-      this.logger.verbose(`codes: ${codes}`);
 
       return codes;
     } catch (error) {
