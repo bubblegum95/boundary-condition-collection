@@ -24,13 +24,6 @@ export const winstonConfig = winston.createLogger({
       maxFiles: '3d',
     }),
     new winston.transports.DailyRotateFile({
-      level: 'info',
-      filename: 'info-%DATE%.log',
-      dirname: path.join(process.cwd(), 'logs/info'),
-      datePattern: 'YYYY-MM-DD',
-      maxFiles: '3d',
-    }),
-    new winston.transports.DailyRotateFile({
       level: 'http',
       filename: 'http-%DATE%.log',
       dirname: path.join(process.cwd(), 'logs/http'),

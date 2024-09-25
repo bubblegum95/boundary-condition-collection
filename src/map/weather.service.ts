@@ -91,7 +91,7 @@ export class WeatherService {
   }
 
   async fetchWeather() {
-    this.logger.info('start to fetch and update weather information data');
+    this.logger.debug('start to fetch and update weather information data');
     try {
       const AUTH_KEY = this.configService.get('AUTH_KEY');
       const url = `https://apihub.kma.go.kr/api/typ01/url/kma_sfctm2.php?authKey=${AUTH_KEY}`;
@@ -141,7 +141,7 @@ export class WeatherService {
   }
 
   async fetchObservatory() {
-    this.logger.info('start to fetch and update observatories');
+    this.logger.debug('start to fetch and update observatories');
 
     try {
       const AUTH_KEY = this.configService.get('AUTH_KEY');
