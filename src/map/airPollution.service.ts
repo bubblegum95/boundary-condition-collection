@@ -200,11 +200,11 @@ export class AirPollutionService {
   }
 
   async checkPollutionInformation() {
-    this.logger.info('start check pollution information data');
+    this.logger.debug('start check pollution information data');
     try {
       const data = await this.fetchPollutionData();
       for (const item of data.response.body.items) {
-        this.logger.info(item);
+        this.logger.debug(item);
         let {
           dataTime,
           sidoName,
@@ -483,7 +483,7 @@ export class AirPollutionService {
       }
 
       if (!cities || cities.length === 0) {
-        this.logger.info(
+        this.logger.debug(
           `해당 city ${sidoName} ${cityName}를 table 에서 찾을 수 없습니다.`
         );
 
@@ -499,7 +499,7 @@ export class AirPollutionService {
   }
 
   async saveAverage(): Promise<void> {
-    this.logger.info('start to save average of city air pollution');
+    this.logger.debug('start to save average of city air pollution');
     try {
       for (let i = 0; i < sidoName.length; i++) {
         setTimeout(async () => {
