@@ -16,21 +16,10 @@ export const winstonConfig = winston.createLogger({
     logFormat
   ),
   transports: [
-    new winston.transports.Console({
-      level: 'silly',
-      format: winston.format.combine(winston.format.colorize(), logFormat),
-    }),
     new winston.transports.DailyRotateFile({
       level: 'error',
       filename: 'error-%DATE%.log',
       dirname: path.join(process.cwd(), 'logs/error'),
-      datePattern: 'YYYY-MM-DD',
-      maxFiles: '3d',
-    }),
-    new winston.transports.DailyRotateFile({
-      level: 'warn',
-      filename: 'warn-%DATE%.log',
-      dirname: path.join(process.cwd(), 'logs/warn'),
       datePattern: 'YYYY-MM-DD',
       maxFiles: '3d',
     }),
@@ -49,24 +38,9 @@ export const winstonConfig = winston.createLogger({
       maxFiles: '3d',
     }),
     new winston.transports.DailyRotateFile({
-      level: 'verbose',
-      filename: 'verbose-%DATE%.log',
-      dirname: path.join(process.cwd(), 'logs/verbose'),
-      datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxFiles: '3d',
-    }),
-    new winston.transports.DailyRotateFile({
       level: 'debug',
       filename: 'debug-%DATE%.log',
       dirname: path.join(process.cwd(), 'logs/debug'),
-      datePattern: 'YYYY-MM-DD',
-      maxFiles: '3d',
-    }),
-    new winston.transports.DailyRotateFile({
-      level: 'silly',
-      filename: 'silly-%DATE%.log',
-      dirname: path.join(process.cwd(), 'logs/silly'),
       datePattern: 'YYYY-MM-DD',
       maxFiles: '3d',
     }),

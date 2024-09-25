@@ -24,11 +24,9 @@ export class WeatherService {
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
     cron.schedule('0 3 * * *', () => {
-      this.logger.debug('start to fetch and update observatories');
       this.fetchObservatory();
     });
     cron.schedule('0/10 * * * *', () => {
-      this.logger.debug('start to fetch and update weather information');
       this.fetchWeather();
     });
   }
@@ -93,53 +91,60 @@ export class WeatherService {
   }
 
   async fetchWeather() {
-    const AUTH_KEY = this.configService.get('AUTH_KEY');
-    const url = `https://apihub.kma.go.kr/api/typ01/url/kma_sfctm2.php?authKey=${AUTH_KEY}`;
+    this.logger.info('start to fetch and update weather information data');
+    try {
+      const AUTH_KEY = this.configService.get('AUTH_KEY');
+      const url = `https://apihub.kma.go.kr/api/typ01/url/kma_sfctm2.php?authKey=${AUTH_KEY}`;
 
-    const response = await fetch(url);
+      const response = await fetch(url);
 
-    if (response.ok) {
-      const txtdata = await response.text();
-      const data = txtdata.split('\n').slice(4, -2);
+      if (response.ok) {
+        const txtdata = await response.text();
+        const data = txtdata.split('\n').slice(4, -2);
 
-      for (const row of data) {
-        const fields = row.split(/\s+/);
-        const num = Number(fields[1]);
-        const foundOb = await this.findObservatory(num);
+        for (const row of data) {
+          const fields = row.split(/\s+/);
+          const num = Number(fields[1]);
+          const foundOb = await this.findObservatory(num);
 
-        if (foundOb) {
-          if (!foundOb.weather) {
-            const item = {
-              measuredAt: fields[0],
-              observatoryId: foundOb.id,
-              tamperature: Number(fields[11]),
-              humidity: Number(fields[13]),
-            };
-            await this.saveWeather(item);
+          if (foundOb) {
+            if (!foundOb.weather) {
+              const item = {
+                measuredAt: fields[0],
+                observatoryId: foundOb.id,
+                tamperature: Number(fields[11]),
+                humidity: Number(fields[13]),
+              };
+              await this.saveWeather(item);
+            } else {
+              const item = {
+                observatoryId: foundOb.id,
+                num,
+                tamperature: Number(fields[11]),
+                humidity: Number(fields[13]),
+                measuredAt: fields[0],
+              };
+              await this.updateWeather(item);
+            }
           } else {
-            const item = {
-              observatoryId: foundOb.id,
-              num,
-              tamperature: Number(fields[11]),
-              humidity: Number(fields[13]),
-              measuredAt: fields[0],
-            };
-            await this.updateWeather(item);
+            this.logger.debug('등록된 관측소가 없습니다.');
+            continue;
           }
-        } else {
-          this.logger.debug('등록된 관측소가 없습니다.');
-          continue;
         }
+      } else {
+        throw new Error('응답없음');
       }
-    } else {
-      throw new Error('응답없음');
+    } catch (error) {
+      this.logger.error('couldnt fetch weather information data');
+      this.logger.error(error.message);
     }
   }
 
   async fetchObservatory() {
+    this.logger.info('start to fetch and update observatories');
+
     try {
       const AUTH_KEY = this.configService.get('AUTH_KEY');
-      console.log(AUTH_KEY);
       const url = `https://apihub.kma.go.kr/api/typ01/url/stn_inf.php?inf=SFC&authKey=${AUTH_KEY}`;
       const response = await fetch(url);
 
@@ -177,7 +182,7 @@ export class WeatherService {
         throw new Error('응답없음');
       }
     } catch (error) {
-      console.log(error);
+      this.logger.error(error.message);
     }
   }
 }
