@@ -17,6 +17,7 @@ import GradeThresholds from './type/grade-thresholds.interface';
 import { gradeThresholds } from './type/grade-thresholds.type';
 import { SavePollutionDto } from './dto/save-pollution.dto';
 import { SaveAverageDto } from './dto/save-average.dto';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class AirPollutionService {
@@ -32,19 +33,26 @@ export class AirPollutionService {
     @InjectEntityManager()
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
-  ) {
-    cron.schedule('*/30 * * * *', () => {
-      this.saveAverage();
-    });
-    cron.schedule('*/10 * * * *', () => {
-      this.checkPollutionInformation();
-    });
-    cron.schedule('0 2 * * *', () => {
-      this.saveStations();
-    });
-    cron.schedule('0 1 1 * *', () => {
-      this.saveDataToFile();
-    });
+  ) {}
+
+  @Cron('0 3 * * *')
+  handleSaveAverage() {
+    this.saveAverage();
+  }
+
+  @Cron('*/10 * * * *')
+  handleSavePollution() {
+    this.checkPollutionInformation();
+  }
+
+  @Cron('0 2 * * *')
+  handleSaveStation() {
+    this.saveStations();
+  }
+
+  @Cron('0 1 1 * *')
+  handle() {
+    this.saveDataToFile();
   }
 
   hasNullValues(obj: Record<string, any>): boolean {
@@ -68,7 +76,7 @@ export class AirPollutionService {
 
   async fetchPollutionData() {
     try {
-      const serviceKey = this.configService.get('SERVICE_KEY');
+      const serviceKey = await this.configService.get('SERVICE_KEY');
       const returnType = 'json';
       const numOfRows = 661;
       const pageNo = 1;
@@ -279,7 +287,7 @@ export class AirPollutionService {
       const pageNo = 1;
       const numOfRows = 1000;
       const returnType = 'json';
-      const serviceKey = this.configService.get('SERVICE_KEY');
+      const serviceKey = await this.configService.get('SERVICE_KEY');
       const url = `http://apis.data.go.kr/B552584/MsrstnInfoInqireSvc/getMsrstnList?&pageNo=${pageNo}&numOfRows=${numOfRows}&serviceKey=${serviceKey}&returnType=${returnType}`;
       const response = await fetch(url);
 
@@ -316,7 +324,7 @@ export class AirPollutionService {
   async fetchAverage(sidoName: string) {
     try {
       this.logger.debug(`sido name: ${sidoName}`);
-      const serviceKey = this.configService.get('SERVICE_KEY');
+      const serviceKey = await this.configService.get('SERVICE_KEY');
       const returnType = 'json';
       const url = `https://apis.data.go.kr/B552584/ArpltnStatsSvc/getCtprvnMesureSidoLIst?serviceKey=${serviceKey}&returnType=${returnType}&numOfRows=100&pageNo=1&sidoName=${sidoName}&searchCondition=HOUR`;
       const response = await fetch(url);

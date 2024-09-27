@@ -12,6 +12,7 @@ import ObservatoryToUpdateDto from './dto/observatory-to-update.dto';
 import * as cron from 'node-cron';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class WeatherService {
@@ -22,13 +23,16 @@ export class WeatherService {
     @InjectRepository(Observatory)
     private readonly observatoryRepository: Repository<Observatory>,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
-  ) {
-    cron.schedule('0 3 * * *', () => {
-      this.fetchObservatory();
-    });
-    cron.schedule('0/10 * * * *', () => {
-      this.fetchWeather();
-    });
+  ) {}
+
+  @Cron('0 3 * * *')
+  handleFetchObservatory() {
+    this.fetchObservatory();
+  }
+
+  @Cron('0/10 * * * *')
+  handleFetchWeather() {
+    this.fetchWeather();
   }
 
   async saveObservatory(dto: ObservatoryToCreateDto) {
