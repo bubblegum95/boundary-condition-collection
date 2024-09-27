@@ -4,7 +4,7 @@ import { Pollutions } from './entities/pollutions.entity';
 import { Stations } from './entities/stations.entity';
 import { Average } from './entities/average.entity';
 import { City } from './entities/city.entity';
-import { EntityManager, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import * as cron from 'node-cron';
@@ -30,7 +30,6 @@ export class AirPollutionService {
     @InjectRepository(City)
     private readonly cityRepository: Repository<City>,
     @InjectEntityManager()
-    private readonly entityManager: EntityManager,
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER) private readonly logger: Logger
   ) {
@@ -137,19 +136,11 @@ export class AirPollutionService {
 
       const foundStation = await this.findStationWithPollution(stationName);
 
-      this.logger.debug(
-        `찾은 측정소: ${foundStation.id} : ${foundStation.stationName}`
-      );
-
       if (!foundStation) {
         this.logger.debug(`등록된 ${stationName} 측정소가 없습니다.`);
         return;
       } else if (foundStation) {
         if (!foundStation.pollution) {
-          this.logger.debug(
-            `새로운 ${foundStation.stationName} 측정소의 측정값을 추가합니다.`
-          );
-
           await this.pollutionsRepository.save({
             stationId: foundStation.id,
             dataTime,
@@ -169,10 +160,6 @@ export class AirPollutionService {
             coGrade,
           });
         } else {
-          this.logger.debug(
-            `${foundStation.stationName} 측정소의 측정값을 업데이트 합니다.`
-          );
-
           await this.pollutionsRepository.update(foundStation.pollution.id, {
             dataTime,
             pm10Value,
@@ -204,7 +191,6 @@ export class AirPollutionService {
     try {
       const data = await this.fetchPollutionData();
       for (const item of data.response.body.items) {
-        this.logger.debug(item);
         let {
           dataTime,
           sidoName,
@@ -317,9 +303,7 @@ export class AirPollutionService {
 
         if (!foundStation) {
           await this.stationsRepository.save({ ...item });
-          this.logger.debug(`새로운 ${item.stationName}을 업로드합니다.`);
         } else {
-          this.logger.debug(`${item.stationName}이 이미 존재합니다.`);
           return;
         }
       }

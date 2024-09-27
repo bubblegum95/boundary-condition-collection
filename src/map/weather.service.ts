@@ -32,25 +32,34 @@ export class WeatherService {
   }
 
   async saveObservatory(dto: ObservatoryToCreateDto) {
-    this.logger.debug('start save observatories');
-    const { num, name, lat, lng } = dto;
-    const data = await this.observatoryRepository.save({
-      num,
-      name,
-      lat,
-      lng,
-    });
-    this.logger.debug('finish save observatories');
+    try {
+      this.logger.debug('start save observatories');
+      const { num, name, lat, lng } = dto;
+      const data = await this.observatoryRepository.save({
+        num,
+        name,
+        lat,
+        lng,
+      });
+      this.logger.debug('finish save observatories');
+    } catch (error) {
+      throw error;
+    }
   }
 
   async updateObservatory(dto: ObservatoryToUpdateDto) {
-    const { id, num, name, lat, lng } = dto;
-    const data = await this.observatoryRepository.update(id, {
-      num,
-      name,
-      lat,
-      lng,
-    });
+    try {
+      const { id, num, name, lat, lng } = dto;
+      const data = await this.observatoryRepository.update(id, {
+        num,
+        name,
+        lat,
+        lng,
+      });
+    } catch (error) {
+      this.logger.error(error.message);
+      throw error;
+    }
   }
 
   async findObservatory(num: number) {
@@ -64,30 +73,41 @@ export class WeatherService {
   }
 
   async saveWeather(dto: WeatherToCreateDto) {
-    this.logger.debug('start to save weather information');
-    const { observatoryId, tamperature, humidity, measuredAt } = dto;
-    this.logger.debug(
-      `observatory id: ${observatoryId}, tamperature: ${tamperature}, humidity: ${humidity}, measured at: ${measuredAt}`
-    );
-    const data = await this.weatherRepository.save({
-      observatoryId,
-      tamperature,
-      humidity,
-      measuredAt,
-    });
+    try {
+      this.logger.debug('start to save weather information');
+      const { observatoryId, tamperature, humidity, measuredAt } = dto;
+      this.logger.debug(
+        `observatory id: ${observatoryId}, tamperature: ${tamperature}, humidity: ${humidity}, measured at: ${measuredAt}`
+      );
+      const data = await this.weatherRepository.save({
+        observatoryId,
+        tamperature,
+        humidity,
+        measuredAt,
+      });
+    } catch (error) {
+      throw error;
+    }
   }
 
   async updateWeather(dto: WeatherToUpdateDto) {
-    this.logger.debug('start to update weather information');
-    const { observatoryId, tamperature, humidity, measuredAt } = dto;
-    this.logger.debug(
-      `observatory id: ${observatoryId}, tamperature: ${tamperature}, humidity: ${humidity}, measured at: ${measuredAt}`
-    );
-    const data = await this.weatherRepository.update(observatoryId, {
-      tamperature,
-      humidity,
-      measuredAt,
-    });
+    try {
+      this.logger.debug('start to update weather information');
+      const { observatoryId, tamperature, humidity, measuredAt } = dto;
+      this.logger.debug(
+        `observatory id: ${observatoryId}, tamperature: ${tamperature}, humidity: ${humidity}, measured at: ${measuredAt}`
+      );
+      const data = await this.weatherRepository.update(observatoryId, {
+        tamperature,
+        humidity,
+        measuredAt,
+      });
+      return data;
+    } catch (error) {
+      this.logger.error('couldnt update weather data');
+      this.logger.error(error.message);
+      throw error;
+    }
   }
 
   async fetchWeather() {
@@ -125,6 +145,7 @@ export class WeatherService {
                 measuredAt: fields[0],
               };
               await this.updateWeather(item);
+              this.logger.debug('successfully update weather data');
             }
           } else {
             this.logger.debug('등록된 관측소가 없습니다.');
@@ -176,6 +197,7 @@ export class WeatherService {
               lng: Number(fields[1]),
             };
             await this.updateObservatory(dto);
+            this.logger.debug('successfully update observatories');
           }
         }
       } else {
