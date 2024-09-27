@@ -10,6 +10,7 @@ import { WinstonModule } from 'nest-winston';
 import { LoggingInterceptor } from './loggingInterceptor';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { winstonConfig } from '../config/winston.config';
+import { ScheduleModule } from '@nestjs/schedule';
 
 const typeOrmModuleOptions = {
   useFactory: async (
@@ -36,6 +37,7 @@ const typeOrmModuleOptions = {
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync(typeOrmModuleOptions),
     ConfigModule.forRoot({
       isGlobal: true,
